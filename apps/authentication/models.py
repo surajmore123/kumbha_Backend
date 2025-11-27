@@ -1,0 +1,123 @@
+from django.db import models
+import uuid
+from datetime import timedelta
+
+from django.db import models
+from django.db.models import Q
+from django.utils import timezone
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    PermissionsMixin,
+    BaseUserManager,
+)
+
+class UserManager(BaseUserManager):
+    def create_user(self, email=None, phone_number=None, password=None, **extra_fields):
+        if not phone_number:
+            raise ValueError("Phone number is required")
+
+        if email:
+            email = self.normalize_email(email)
+
+        user = self.model(
+            email=email,
+            phone_number=phone_number,
+            **extra_fields,
+        )
+        if password:
+            user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, phone_number, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_active", True)
+
+        return self.create_user(
+            email=email,
+            phone_number=phone_number,
+            password=password,
+            **extra_fields,
+        )
+    
+
+class User(AbstractBaseUser,PermissionsMixin):
+    user_id = models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False,unique=True)
+
+    full_Name = models.CharField(max_length=255,null=True,blank=True)
+    email = models.EmailField(max_length=255,null=True,blank=True)
+    phone_number = models.CharField(max_length=10,unique=True)
+    profile_pic_url = models.TextField(null=True,blank=True)
+    otp_verified = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)  
+
+ 
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    objects = UserManager()
+
+    USERNAME_FIELD = "phone_number"
+    REQUIRED_FIELDS = ["email"]
+
+    class Meta:
+        db_table = "users"
+        verbose_name = "User"
+        verbose_name_plural = "Users"
+        constraints = [
+            # enforce unique email only when not null
+            models.UniqueConstraint(
+                fields=["email"],
+                name="users_unique_email_when_present",
+                condition=Q(email__isnull=False),
+            )
+        ]
+
+    def __str__(self):
+        identifier = self.email or self.phone_number
+        return f"{identifier} ({self.user_id})"
+    
+class Otp(models.Model):
+    otp_id = models.BigAutoField(primary_key=True, unique=True)
+
+    # FK -> users.user_id (UUID)
+    user = models.ForeignKey(
+        "authentication.User",
+        on_delete=models.CASCADE,
+        related_name="otps",
+    )
+
+    otp_code = models.CharField(max_length=6)
+    expiry_time = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    is_del = models.SmallIntegerField(default=0)
+
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "otps"
+        verbose_name = "OTP"
+        verbose_name_plural = "OTPs"
+        indexes = [
+            models.Index(fields=["user", "otp_code", "is_used"]),
+        ]
+
+    def __str__(self):
+        return f"OTP for {self.user.email or self.user.phone_number}"
+
+    def is_expired(self):
+        return timezone.now() > self.expiry_time
+
+    @classmethod
+    def create_static_otp(cls, user):
+        """Helper for testing/dev; creates 111111 OTP valid for 5 minutes."""
+        return cls.objects.create(
+            user=user,
+            otp_code="111111",
+            expiry_time=timezone.now() + timedelta(minutes=5),
+        )
+
+
+
