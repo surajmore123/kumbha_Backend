@@ -47,7 +47,7 @@ class User(AbstractBaseUser,PermissionsMixin):
 
     full_Name = models.CharField(max_length=255,null=True,blank=True)
     email = models.EmailField(max_length=255,null=True,blank=True)
-    phone_number = models.CharField(max_length=10,unique=True)
+    phone_number = models.CharField(max_length=20,unique=True)
     profile_pic_url = models.TextField(null=True,blank=True)
     otp_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
