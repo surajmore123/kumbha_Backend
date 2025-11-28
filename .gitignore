@@ -1,0 +1,6 @@
+# Environment files
+.env
+*.env
+.env.*
+envs/.env.local
+envs/.envenvs/.env.local
