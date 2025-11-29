@@ -80,9 +80,9 @@ class ChatMessage(BaseModel):
     )  
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     content = models.TextField()
-    message_type = models.CharField(max_length=20, default="text")
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    message_type = models.CharField(max_length=20, default="text")
 
     class Meta:
         db_table = "chat_messages"
