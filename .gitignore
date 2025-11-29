@@ -1,6 +1,110 @@
+Step 1: Add env file to .gitignore
+
+Open or create .gitignore in the project root:
+
+notepad .gitignore
+
+
+Add the following lines:
+
 # Environment files
 .env
-*.env
 .env.*
 envs/.env.local
-envs/.envenvs/.env.local
+
+
+✅ This ensures env files are never tracked by Git.
+
+✅ Step 2: If .env was already committed (IMPORTANT)
+
+If the env file was accidentally pushed before:
+
+2.1 Remove it from Git tracking (without deleting locally)
+git rm --cached envs/.env.local
+git commit -m "Remove env file from tracking"
+git push
+
+
+✅ Local file stays
+✅ Git stops tracking it
+
+2.2 Permanently remove it from Git history
+
+Required if secrets were already pushed
+
+pip install git-filter-repo
+cd kumbha_Backend
+git filter-repo --path envs/.env.local --invert-paths
+git push origin --force --all
+git push origin --force --tags
+
+
+✅ Removes env file from all past commits
+
+🚨 Step 3: Rotate Secrets
+
+If .env was ever pushed publicly:
+
+Change database passwords
+
+Regenerate API keys
+
+Regenerate Django SECRET_KEY
+
+Update credentials in dashboards (Twilio, AWS, etc.)
+
+Never reuse leaked secrets.
+
+✅ Step 4: Use .env.example (Best Practice)
+
+Create a safe sample file:
+
+envs/.env.example
+
+
+Example content:
+
+DEBUG=
+SECRET_KEY=
+RDS_HOST=
+RDS_PORT=
+RDS_DATABASE=
+RDS_USERNAME=
+RDS_PASSWORD=
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+
+
+✅ No real values
+✅ Safe to commit
+
+Commit it:
+
+git add envs/.env.example
+git commit -m "Add env example file"
+git push
+
+✅ Step 5: Local setup instructions (for developers)
+
+Each developer should:
+
+cp envs/.env.example envs/.env.local
+
+
+Then fill in their own values locally.
+
+✅ Final Checklist
+
+✅ .env.local added to .gitignore
+✅ .env.local removed from Git history
+✅ Secrets rotated
+✅ .env.example committed
+✅ Safe for public repositories
+
+✅ Common Mistakes to Avoid
+
+❌ Committing .env files
+❌ Storing secrets in settings.py directly
+❌ Sharing env files over GitHub
+❌ Reusing leaked credentials
