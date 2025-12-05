@@ -5,7 +5,11 @@ from django.utils import timezone
 from rest_framework import serializers
 from apps.aiChat.models import ChatSession, ChatMessage
 
-N8N_WEBHOOK_URL = "https://permeant-elbert-sulkier.ngrok-free.dev/webhook/chat"
+N8N_WEBHOOK_URL ="https://permeant-elbert-sulkier.ngrok-free.dev/webhook/chat"
+# "https://permeant-elbert-sulkier.ngrok-free.dev/webhook/chat"
+# "https://workflows.softwarecompanyindia.com/webhook/chat"
+# 
+
 
 
 class ChatRequestSerializer(serializers.Serializer):
@@ -120,55 +124,27 @@ class ChatRequestSerializer(serializers.Serializer):
 
 
 class ChatHistorySerializer(serializers.Serializer):
-    # now optional – backend can decide
-    session_id = serializers.UUIDField(required=False)
-    cursor = serializers.IntegerField(required=False)
-    limit = serializers.IntegerField(required=False, default=20)
+    session_id = serializers.UUIDField()
+    cursor = serializers.IntegerField(required=False)  # message_id
+    limit = serializers.IntegerField(required=False, default=10)
 
     def validate(self, attrs):
         request = self.context["request"]
         user = request.user
 
-        # pagination guard
-        limit = attrs.get("limit", 20)
-        limit = min(limit, 50)
+        limit = min(attrs.get("limit", 10), 50)
         attrs["limit"] = limit
 
-        # optional cursor (we don't need it in validate)
-        cursor = attrs.get("cursor")
-
-        # 🔹 session_id may or may not be provided
-        session_id = attrs.get("session_id")
-
-        if session_id:
-            # Use the specific session passed from client
-            try:
-                session = ChatSession.objects.get(
-                    session_id=session_id,
-                    user=user,
-                    del_flag=0,
-                )
-            except ChatSession.DoesNotExist:
-                raise serializers.ValidationError(
-                    {"session_id": "Chat session not found"}
-                )
-        else:
-            # No session_id → reuse latest session OR create a fresh empty one
-            session = (
-                ChatSession.objects
-                .filter(user=user, mode="guru_ai", del_flag=0)
-                .order_by("-created_at")
-                .first()
+        try:
+            session = ChatSession.objects.get(
+                session_id=attrs["session_id"],
+                user=user,
+                del_flag=0,
             )
-
-            if session is None:
-                # user has no previous sessions → create a new one so
-                # frontend still gets a valid session_id back
-                session = ChatSession.objects.create(
-                    user=user,
-                    title="Ask Guru AI",
-                    mode="guru_ai",
-                )
+        except ChatSession.DoesNotExist:
+            raise serializers.ValidationError(
+                {"session_id": "Chat session not found"}
+            )
 
         attrs["session"] = session
         return attrs
@@ -181,13 +157,15 @@ class ChatHistorySerializer(serializers.Serializer):
         queryset = (
             ChatMessage.objects
             .filter(session=session)
-            .order_by("-message_id")  # newest → oldest
+            .order_by("-message_id")  # newest ➜ oldest
         )
 
+        # ✅ Load older messages only when cursor is provided
         if cursor:
             queryset = queryset.filter(message_id__lt=cursor)
 
-        messages = list(queryset[: limit + 1 ])  # fetch one extra to detect has_more
+        messages = list(queryset[:limit + 1])  # fetch extra for has_more
+
         has_more = len(messages) > limit
         messages = messages[:limit]
 
@@ -202,9 +180,10 @@ class ChatHistorySerializer(serializers.Serializer):
                     "content": msg.content,
                     "created_at": msg.created_at,
                 }
-                for msg in reversed(messages)  # oldest → newest for UI
+                for msg in reversed(messages)  # oldest ➜ newest for UI
             ],
             "has_more": has_more,
             "next_cursor": next_cursor,
         }
+
 
