@@ -19,7 +19,7 @@ load_dotenv(ENV_FILE)
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.25"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.25","192.168.1.29","192.168.1.39","192.168.1.5"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -123,3 +123,8 @@ SIMPLE_JWT = {
 
 
 AUTH_USER_MODEL = "authentication.User"
+
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
