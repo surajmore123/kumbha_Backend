@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
-from .serializer import MobileOtpRequestSerializer,VerifyMobileOtpSerializer,UserProfileSerializer
+from .serializer import MobileOtpRequestSerializer,VerifyMobileOtpSerializer,UserProfileSerializer,UserProfileImageSerializer
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -26,6 +26,7 @@ class SendMobileOtpView(APIView):
                         "phone_number": data["phone_number"],
                         "otp_id": data["otp_id"],
                         "otp_verified":data["otp_verified"],
+                        
                     }
             },status=status.HTTP_201_CREATED)
         
@@ -49,16 +50,18 @@ class VerifyMobileOtpView(APIView):
                 "user_id":data["user_id"],
                 "phone_number":data["phone_number"],
                 "access_token":data["access_token"],
+                "session_id": data.get("session_id"),
                 }
             },status=status.HTTP_200_OK,)
         
         return Response({"status": "error", "errors": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,)
     
+
 class UserProfileView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    # parser_classes = [JSONParser]   # only JSON payload
 
     def get(self, request):
         serializer = UserProfileSerializer(request.user)
@@ -90,3 +93,72 @@ class UserProfileView(APIView):
             {"status": "error", "errors": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    
+
+
+class UserProfileImageUploadView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def patch(self, request):
+        serializer = UserProfileImageSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+
+        if serializer.is_valid():
+            user = serializer.save()
+            profile_data = UserProfileSerializer(user).data
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Profile image updated successfully.",
+                    "data": profile_data,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {"status": "error", "errors": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+# class UserProfileView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+#     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+#     def get(self, request):
+#         serializer = UserProfileSerializer(request.user)
+#         return Response(
+#             {"status": "success", "data": serializer.data},
+#             status=status.HTTP_200_OK,
+#         )
+
+#     def patch(self, request):
+#         serializer = UserProfileSerializer(
+#             request.user,
+#             data=request.data,
+#             partial=True,
+#             context={"request": request},
+#         )
+
+#         if serializer.is_valid():
+#             user = serializer.save()
+#             return Response(
+#                 {
+#                     "status": "success",
+#                     "message": "Profile updated successfully.",
+#                     "data": UserProfileSerializer(user).data,
+#                 },
+#                 status=status.HTTP_200_OK,
+#             )
+
+#         return Response(
+#             {"status": "error", "errors": serializer.errors},
+#             status=status.HTTP_400_BAD_REQUEST,
+#         )
