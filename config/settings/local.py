@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 # local.py is at: config/settings/local.py
 # So parent.parent.parent = KUMBHA_BACKEND
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
-
+APPS_DIR = BASE_DIR / "apps"
 # Load envs/.env.local
 ENV_FILE = BASE_DIR / "envs" / ".env.local"
 load_dotenv(ENV_FILE)
@@ -19,7 +19,7 @@ load_dotenv(ENV_FILE)
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.25","192.168.1.29","192.168.1.39","192.168.1.5"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.25","192.168.1.29","192.168.1.26","192.168.1.5"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -124,7 +124,10 @@ SIMPLE_JWT = {
 
 AUTH_USER_MODEL = "authentication.User"
 
-
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [APPS_DIR / "static"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
 

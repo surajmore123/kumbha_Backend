@@ -4,6 +4,7 @@ from datetime import timedelta
 from .models import User,Otp
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from django.core.files.storage import default_storage
+from apps.aiChat.models import ChatSession,ChatMessage
 from django.conf import settings
 import os
 
@@ -104,17 +105,27 @@ class VerifyMobileOtpSerializer(serializers.Serializer):
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
+        session = (ChatSession.objects.filter(user=user,mode="guru_ai",del_flag=0).order_by("-created_at").first())
+
+        session_id = str(session.session_id) if session else None
+
 
         response_data = {
             "user_id": user.user_id,
             "phone_number": user.phone_number,
             "otp_verified": user.otp_verified,
             "access_token": access_token,
+            "session_id": session_id,
             "message": "Mobile number verified successfully.",
         } 
 
         return response_data
     
+
+from rest_framework import serializers
+from apps.authentication.models import User
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(
         source="full_Name",
@@ -123,16 +134,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         allow_blank=True,
         allow_null=True,
     )
-    # URL we return to client (read-only)
     profile_url = serializers.CharField(
         source="profile_pic_url",
         read_only=True,
-    )
-    # file we accept from client (write-only)
-    profile_image = serializers.ImageField(
-        write_only=True,
-        required=False,
-        allow_null=True,
     )
 
     class Meta:
@@ -142,8 +146,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "phone_number",
             "full_name",
             "email",
-            "profile_url",   # string we return
-            "profile_image", # file we accept
+            "profile_url",
         ]
         read_only_fields = ["user_id", "phone_number"]
 
@@ -165,25 +168,109 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return value
 
     def update(self, instance, validated_data):
-        # handle normal fields
         full_name = validated_data.get("full_Name", None)
         email = validated_data.get("email", None)
-        profile_image = validated_data.pop("profile_image", None)
 
         if full_name is not None:
             instance.full_Name = full_name
         if email is not None:
             instance.email = email
 
-        # handle image upload
+        instance.save()
+        return instance
+
+    
+# class UserProfileSerializer(serializers.ModelSerializer):
+#     full_name = serializers.CharField(
+#         source="full_Name",
+#         max_length=255,
+#         required=False,
+#         allow_blank=True,
+#         allow_null=True,
+#     )
+#     # URL we return to client (read-only)
+#     profile_url = serializers.CharField(
+#         source="profile_pic_url",
+#         read_only=True,
+#     )
+#     # file we accept from client (write-only)
+#     profile_image = serializers.ImageField(
+#         write_only=True,
+#         required=False,
+#         allow_null=True,
+#     )
+
+#     class Meta:
+#         model = User
+#         fields = [
+#             "user_id",
+#             "phone_number",
+#             "full_name",
+#             "email",
+#             "profile_url",   # string we return
+#             "profile_image", # file we accept
+#         ]
+#         read_only_fields = ["user_id", "phone_number"]
+
+#     def validate_email(self, value):
+#         if not value:
+#             return value
+
+#         request = self.context.get("request")
+#         current_user = self.instance or getattr(request, "user", None)
+
+#         qs = User.objects.filter(email__iexact=value)
+#         if current_user:
+#             qs = qs.exclude(pk=current_user.pk)
+
+#         if qs.exists():
+#             raise serializers.ValidationError(
+#                 "This email is already used by another account."
+#             )
+#         return value
+
+#     def update(self, instance, validated_data):
+#         # handle normal fields
+#         full_name = validated_data.get("full_Name", None)
+#         email = validated_data.get("email", None)
+#         profile_image = validated_data.pop("profile_image", None)
+
+#         if full_name is not None:
+#             instance.full_Name = full_name
+#         if email is not None:
+#             instance.email = email
+
+#         # handle image upload
+#         if profile_image:
+#             # path: media/profile/<user_id>/<filename>
+#             folder = f"profile/{instance.user_id}"
+#             filename = default_storage.save(
+#                 os.path.join(folder, profile_image.name),
+#                 profile_image,
+#             )
+#             # store URL/path in profile_pic_url
+#             instance.profile_pic_url = default_storage.url(filename)
+
+#         instance.save()
+#         return instance
+
+
+class UserProfileImageSerializer(serializers.ModelSerializer): 
+    profile_image = serializers.ImageField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ["profile_image"]
+
+    def update(self, instance, validated_data):
+        profile_image = validated_data.get("profile_image")
+
         if profile_image:
-            # path: media/profile/<user_id>/<filename>
             folder = f"profile/{instance.user_id}"
             filename = default_storage.save(
                 os.path.join(folder, profile_image.name),
                 profile_image,
             )
-            # store URL/path in profile_pic_url
             instance.profile_pic_url = default_storage.url(filename)
 
         instance.save()
