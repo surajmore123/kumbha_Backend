@@ -1,29 +1,59 @@
 # apps/aiChat/serializers.py
 
+import os
+import base64
 import requests
+
+from django.core.files.storage import default_storage
 from django.utils import timezone
 from rest_framework import serializers
+
 from apps.aiChat.models import ChatSession, ChatMessage
 
-N8N_WEBHOOK_URL ="https://permeant-elbert-sulkier.ngrok-free.dev/webhook/chat"
-# "https://permeant-elbert-sulkier.ngrok-free.dev/webhook/chat"
-# "https://workflows.softwarecompanyindia.com/webhook/chat"
-# 
-
+# n8n webhook URL
+N8N_WEBHOOK_URL = "https://permeant-elbert-sulkier.ngrok-free.dev/webhook/chat"
+# alternatives (commented)
+# N8N_WEBHOOK_URL = "https://workflows.softwarecompanyindia.com/webhook/chat"
 
 
 class ChatRequestSerializer(serializers.Serializer):
-    message = serializers.CharField()
+    """
+    Handles sending a chat message (text / image / audio / file) to:
+    - Save in DB
+    - Call n8n webhook (with Base64 for files)
+    - Store assistant response
+    """
+
+    # text content (optional; can be empty for pure file messages)
+    message = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    # optional – if not sent, we reuse latest session for the user
     session_id = serializers.UUIDField(required=False, allow_null=True)
 
+    # file for image / audio / other
+    file = serializers.FileField(
+        required=False,
+        allow_null=True,
+    )
+
     def validate(self, attrs):
-        user = self.context["request"].user
+        request = self.context["request"]
+        user = request.user
         session_id = attrs.get("session_id")
+        message = attrs.get("message")
+        upload_file = attrs.get("file")
 
-        # DEBUG (optional, to see what's coming from client)
-        # print("DEBUG user:", user.user_id, "session_id from request:", session_id)
+        # 0️⃣ Ensure at least text or file is present
+        if (not message or str(message).strip() == "") and not upload_file:
+            raise serializers.ValidationError(
+                {"message": "Either 'message' text or 'file' is required."}
+            )
 
-        # 1️⃣ If client sends a session_id → use that specific session
+        # 1️⃣ Find or create session
         if session_id:
             try:
                 session = ChatSession.objects.get(
@@ -35,9 +65,8 @@ class ChatRequestSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {"session_id": "Chat session not found"}
                 )
-
         else:
-            # 2️⃣ No session_id → reuse the latest session for this user
+            # Reuse latest session for this user & mode
             session = (
                 ChatSession.objects
                 .filter(user=user, mode="guru_ai", del_flag=0)
@@ -45,7 +74,7 @@ class ChatRequestSerializer(serializers.Serializer):
                 .first()
             )
 
-            # 3️⃣ If user has no previous sessions → create a new one
+            # If no existing session → create a new one
             if session is None:
                 session = ChatSession.objects.create(
                     user=user,
@@ -53,33 +82,103 @@ class ChatRequestSerializer(serializers.Serializer):
                     mode="guru_ai",
                 )
 
-        attrs["session"] = session
+        # 2️⃣ Decide message_type based on file (if any)
+        message_type = "text"
+        if upload_file:
+            content_type = getattr(upload_file, "content_type", "") or ""
+            if content_type.startswith("image/"):
+                message_type = "image"
+            elif content_type.startswith("audio/"):
+                message_type = "audio"
+            else:
+                message_type = "file"
+
+        # Normalize message (avoid None)
+        attrs["message"] = message or ""
         attrs["user"] = user
+        attrs["session"] = session
+        attrs["message_type"] = message_type
+
         return attrs
 
     def create(self, validated_data):
         user = validated_data["user"]
         session = validated_data["session"]
         message_text = validated_data["message"]
+        message_type = validated_data["message_type"]
+        upload_file = validated_data.get("file")
 
-        # 1️⃣ Save USER message
+        file_url = None
+        file_storage_name = None
+        metadata = {}
+
+        # 1️⃣ Handle file upload if present
+        if upload_file:
+            folder = f"chat/{user.user_id}"
+            file_storage_name = default_storage.save(
+                os.path.join(folder, upload_file.name),
+                upload_file,
+            )
+            file_url = default_storage.url(file_storage_name)
+            metadata.update(
+                {
+                    "original_name": upload_file.name,
+                    "content_type": getattr(upload_file, "content_type", None),
+                    "size": upload_file.size,
+                }
+            )
+
         user_msg = ChatMessage.objects.create(
             session=session,
             user=user,
             role="user",
-            content=message_text,
-            message_type="text",
+            message_type=message_type,
+            content=message_text if message_type == "text" else None,
+            file_url=file_url,
+            metadata=metadata,
         )
 
-        # 2️⃣ Call N8N webhook
+        # 3️⃣ Call n8n webhook for ALL message types (with base64 if file)
+        assistant_msg = None
         try:
+            payload = {
+                "session_id": str(session.session_id),
+                "user_id": str(user.user_id),
+                "message_type": message_type,
+                "message": message_text,
+                "file_url": file_url,   # still useful for frontend / logs
+                "metadata": metadata,
+            }
+
+            # If file exists → send Base64 in payload
+            if upload_file and file_storage_name:
+                try:
+                    # Get absolute storage path
+                    file_path = default_storage.path(file_storage_name)
+                    with open(file_path, "rb") as f:
+                        file_bytes = f.read()
+                    file_b64 = base64.b64encode(file_bytes).decode("utf-8")
+
+                    payload["file_base64"] = file_b64
+                    payload["file_name"] = upload_file.name
+                    payload["file_mime"] = metadata.get("content_type")
+                except Exception as read_err:
+                    # If reading fails, still continue with URL & metadata
+                    payload["file_read_error"] = str(read_err)
+
+            # POST to webhook
             n8n_response = requests.post(
                 N8N_WEBHOOK_URL,
-                json={"message": message_text},
+                json=payload,
                 timeout=30,
             )
             n8n_response.raise_for_status()
-            n8n_data = n8n_response.json()
+
+            # Try to parse JSON; if not JSON, fallback to raw text
+            try:
+                n8n_data = n8n_response.json()
+            except ValueError:
+                n8n_data = {"raw": n8n_response.text}
 
             assistant_text = (
                 n8n_data.get("reply")
@@ -91,39 +190,55 @@ class ChatRequestSerializer(serializers.Serializer):
             assistant_text = "Sorry, I am unable to respond right now."
             n8n_data = {"error": str(e)}
 
-        # 3️⃣ Save ASSISTANT message
+        # 4️⃣ Save ASSISTANT message (text reply) in DB
         assistant_msg = ChatMessage.objects.create(
             session=session,
             role="assistant",
+            message_type="text",
             content=assistant_text,
             metadata={"n8n_raw": n8n_data},
-            message_type="text",
         )
 
-        # 4️⃣ Update session timestamps
+        # 5️⃣ Update session timestamps
         session.last_message_at = timezone.now()
         session.save(update_fields=["last_message_at"])
 
-        # 5️⃣ Return final response
+        # 6️⃣ Build response payload for client
+        messages_payload = [
+            {
+                "message_id": user_msg.message_id,
+                "role": user_msg.role,
+                # "message_type": user_msg.message_type,
+                "content": user_msg.content,
+                "file_url": user_msg.file_url,
+                "metadata": user_msg.metadata,
+                "created_at": user_msg.created_at,
+                "session_id": str(session.session_id),
+            },
+            {
+                "message_id": assistant_msg.message_id,
+                "role": assistant_msg.role,
+                "message_type": assistant_msg.message_type,
+                "content": assistant_msg.content,
+                "file_url": getattr(assistant_msg, "file_url", None),
+                # "metadata": assistant_msg.metadata,
+                "session_id": str(session.session_id),
+                "created_at": assistant_msg.created_at,
+            },
+        ]
+
         return {
             "session_id": str(session.session_id),
-            "messages": [
-                {
-                    "role": "user",
-                    "content": user_msg.content,
-                    "created_at": user_msg.created_at,
-                },
-                {
-                    "role": "assistant",
-                    "content": assistant_msg.content,
-                    "created_at": assistant_msg.created_at,
-                },
-            ],
+            "messages": messages_payload,
         }
 
 
-
 class ChatHistorySerializer(serializers.Serializer):
+    """
+    Returns paginated chat history for a given session.
+    Supports cursor-based pagination using message_id.
+    """
+
     session_id = serializers.UUIDField()
     cursor = serializers.IntegerField(required=False)  # message_id
     limit = serializers.IntegerField(required=False, default=10)
@@ -132,9 +247,11 @@ class ChatHistorySerializer(serializers.Serializer):
         request = self.context["request"]
         user = request.user
 
+        # sanitize limit
         limit = min(attrs.get("limit", 10), 50)
         attrs["limit"] = limit
 
+        # validate session
         try:
             session = ChatSession.objects.get(
                 session_id=attrs["session_id"],
@@ -160,12 +277,12 @@ class ChatHistorySerializer(serializers.Serializer):
             .order_by("-message_id")  # newest ➜ oldest
         )
 
-        # ✅ Load older messages only when cursor is provided
+        # cursor pagination: load messages with id < cursor
         if cursor:
             queryset = queryset.filter(message_id__lt=cursor)
 
-        messages = list(queryset[:limit + 1])  # fetch extra for has_more
-
+        # fetch limit+1 to know if there are more
+        messages = list(queryset[: limit + 1])
         has_more = len(messages) > limit
         messages = messages[:limit]
 
@@ -177,7 +294,10 @@ class ChatHistorySerializer(serializers.Serializer):
                 {
                     "message_id": msg.message_id,
                     "role": msg.role,
+                    "message_type": msg.message_type,
                     "content": msg.content,
+                    "file_url": msg.file_url,
+                    "metadata": msg.metadata,
                     "created_at": msg.created_at,
                 }
                 for msg in reversed(messages)  # oldest ➜ newest for UI
@@ -185,5 +305,3 @@ class ChatHistorySerializer(serializers.Serializer):
             "has_more": has_more,
             "next_cursor": next_cursor,
         }
-
-

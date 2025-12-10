@@ -56,7 +56,8 @@ class ChatSession(BaseModel):
 
     def __str__(self):
         return f"{self.user.phone_number} - {self.title or self.session_id}"
-
+    
+    
 
 class ChatMessage(BaseModel):
     ROLE_CHOICES = [
@@ -65,29 +66,36 @@ class ChatMessage(BaseModel):
         ("system", "System"),
     ]
 
+    MESSAGE_TYPES = [
+        ("text", "Text"),
+        ("image", "Image"),
+        ("audio", "Audio"),
+        ("file", "File"),
+    ]
+
     message_id = models.BigAutoField(primary_key=True)
-    session = models.ForeignKey(
-        ChatSession,
-        on_delete=models.CASCADE,
-        related_name="messages",
-    )
-    user = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="messages",
-    )  
+    session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name="messages")
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
-    content = models.TextField()
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPES, default="text")
+
+    # Stores text if message_type='text'
+    content = models.TextField(blank=True, null=True)
+
+    # Stores uploaded file (image/audio/etc.)
+    file_url = models.TextField(blank=True, null=True)
+
+    # Raw metadata (duration, format, file_size, AI-debug-info, etc.)
     metadata = models.JSONField(default=dict, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
-    message_type = models.CharField(max_length=20, default="text")
 
     class Meta:
         db_table = "chat_messages"
         ordering = ["created_at"]
 
     def __str__(self):
-        return f"[{self.role}] {self.content[:40]}"
-
+        if self.message_type == "text":
+            return f"[{self.role}] {self.content[:40]}"
+        return f"[{self.role}] ({self.message_type} message)"
