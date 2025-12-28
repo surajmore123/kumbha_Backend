@@ -18,3 +18,22 @@ class NearbyTempleSerializer(serializers.ModelSerializer):
             "crowd_message",
             "distance_km",
         ]
+
+
+class TempleDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Temple
+        fields = [
+            "temple_id",
+            "name",
+            "description",
+            "latitude",
+            "longitude",
+            "image_url",
+            "city",
+            "state",
+            "crowd_level",
+            "crowd_message",
+            "created_at",
+        ]
+
