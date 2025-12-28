@@ -15,3 +15,24 @@ def haversine(lat1, lon1, lat2, lon2):
     )
 
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+
+def log_temple_event(
+    *,
+    request,
+    temple,
+    event_type,
+    user_lat=None,
+    user_lng=None,
+):
+    from .models import TempleAnalyticsView
+
+    TempleAnalyticsView.objects.create(
+        user=request.user if request.user.is_authenticated else None,
+        temple=temple,
+        event_type=event_type,
+        user_latitude=user_lat,
+        user_longitude=user_lng,
+    )
+

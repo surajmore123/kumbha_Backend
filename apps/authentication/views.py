@@ -61,7 +61,7 @@ class VerifyMobileOtpView(APIView):
 class UserProfileView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-    # parser_classes = [JSONParser]   # only JSON payload
+   
 
     def get(self, request):
         serializer = UserProfileSerializer(request.user)
