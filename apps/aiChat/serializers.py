@@ -12,7 +12,7 @@ from rest_framework import serializers
 from apps.aiChat.models import ChatSession, ChatMessage
 
 # n8n webhook URL
-N8N_WEBHOOK_URL = "https://permeant-elbert-sulkier.ngrok-free.dev/webhook-test/chat"
+N8N_WEBHOOK_URL = "https://permeant-elbert-sulkier.ngrok-free.dev/webhook/chat"
 # alternatives (commented)
 # N8N_WEBHOOK_URL = "https://workflows.softwarecompanyindia.com/webhook/chat"
 
