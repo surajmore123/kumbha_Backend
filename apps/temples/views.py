@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from .models import Temple
-from .serializers import NearbyTempleSerializer,TempleDetailSerializer
+from .serializers import NearbyTempleSerializer,TempleDetailSerializer,TempleNavigationSerializer
 from rest_framework.permissions import IsAuthenticated
 from .utility import haversine,log_temple_event
 
@@ -116,3 +116,25 @@ class TempleDetailAPI(APIView):
         )
 
        
+class TempleNavigationAPI(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self,request,temple_id):
+        try:
+            temple = Temple.objects.get(temple_id=temple_id,is_active=True)
+        except Temple.DoesNotExist:
+            return Response({"status": "error", "message": "Temple not found"},status=status.HTTP_404_NOT_FOUND)
+        
+        log_temple_event(request=request,
+            temple=temple,
+            event_type="NAVIGATE",
+            user_lat=request.data.get("user_latitude"),
+            user_lng=request.data.get("user_longitude"),)
+        
+        serializer = TempleNavigationSerializer(temple)
+
+        return Response(
+            {"status": "success", "data": serializer.data},
+            status=status.HTTP_200_OK,
+        )

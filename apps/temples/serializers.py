@@ -37,3 +37,9 @@ class TempleDetailSerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
+class TempleNavigationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Temple
+        fields = ["temple_id", "name", "latitude", "longitude"]
+
+
