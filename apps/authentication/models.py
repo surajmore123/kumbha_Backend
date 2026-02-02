@@ -121,3 +121,36 @@ class Otp(models.Model):
 
 
 
+
+
+class FCMDevice(models.Model):
+    device_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="fcm_devices"
+    )
+
+    token = models.TextField(unique=True)
+    device_type = models.CharField(
+        max_length=10,
+        choices=[("ANDROID", "Android"), ("IOS", "iOS"), ("WEB", "Web")]
+    )
+
+    is_active = models.BooleanField(default=True)
+    last_seen = models.DateTimeField(auto_now=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "fcm_devices"
+        indexes = [
+            models.Index(fields=["user"]),
+            models.Index(fields=["is_active"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} - {self.device_type}"
+
+

@@ -11,6 +11,7 @@ Add the following lines:
 .env
 .env.*
 envs/.env.local
+config/credentials/
 
 
 ✅ This ensures env files are never tracked by Git.

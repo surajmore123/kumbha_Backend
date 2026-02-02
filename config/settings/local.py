@@ -18,8 +18,8 @@ load_dotenv(ENV_FILE)
 # ==== CORE SETTINGS ====
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
-
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.25","192.168.1.36","192.168.1.5",]
+CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.25","192.168.1.36","192.168.1.5","192.168.1.4","192.168.1.3",]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "apps.aiChat",
     "apps.temples",
     "apps.events",
+    "django_celery_beat",
  
 ]
 
@@ -65,6 +66,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_TIMEZONE = "Asia/Kolkata"
 # ==== DATABASE: POSTGRES ====
 DATABASES = {
     "default": {
@@ -94,8 +98,9 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # ==== I18N / L10N ====
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Kolkata"
+USE_TZ = True
+
 USE_I18N = True
 USE_TZ = True
 
