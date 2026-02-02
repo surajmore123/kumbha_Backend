@@ -20,3 +20,7 @@ class EventListSerializer(serializers.ModelSerializer):
             "priority_level",
             "expected_crowd_level",
         ]
+
+
+class ReminderToggleSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=["ENABLE", "DISABLE"])

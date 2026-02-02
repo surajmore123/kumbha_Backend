@@ -1,12 +1,14 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
-from .serializer import MobileOtpRequestSerializer,VerifyMobileOtpSerializer,UserProfileSerializer,UserProfileImageSerializer
+from .serializer import MobileOtpRequestSerializer,VerifyMobileOtpSerializer,UserProfileSerializer,UserProfileImageSerializer,FCMDeviceSerializer
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from .models import FCMDevice
 
 
 class SendMobileOtpView(APIView):
@@ -127,38 +129,33 @@ class UserProfileImageUploadView(APIView):
         )
 
 
-# class UserProfileView(APIView):
-#     authentication_classes = [JWTAuthentication]
-#     permission_classes = [IsAuthenticated]
-#     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-#     def get(self, request):
-#         serializer = UserProfileSerializer(request.user)
-#         return Response(
-#             {"status": "success", "data": serializer.data},
-#             status=status.HTTP_200_OK,
-#         )
 
-#     def patch(self, request):
-#         serializer = UserProfileSerializer(
-#             request.user,
-#             data=request.data,
-#             partial=True,
-#             context={"request": request},
-#         )
 
-#         if serializer.is_valid():
-#             user = serializer.save()
-#             return Response(
-#                 {
-#                     "status": "success",
-#                     "message": "Profile updated successfully.",
-#                     "data": UserProfileSerializer(user).data,
-#                 },
-#                 status=status.HTTP_200_OK,
-#             )
+class RegisterFCMDeviceAPI(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
-#         return Response(
-#             {"status": "error", "errors": serializer.errors},
-#             status=status.HTTP_400_BAD_REQUEST,
-#         )
+    def post(self, request):
+        serializer = FCMDeviceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token = serializer.validated_data["token"]
+        device_type = serializer.validated_data["device_type"]
+
+        device, created = FCMDevice.objects.update_or_create(
+            token=token,
+            defaults={
+                "user": request.user,
+                "device_type": device_type,
+                "is_active": True
+            }
+        )
+
+        return Response(
+            {   "status": "success",
+                "message": "FCM device registered",
+                "device_id": str(device.device_id)
+            },
+            status=status.HTTP_200_OK
+        )
