@@ -113,43 +113,7 @@ class UpcomingEventAPI(APIView):
             },
             status=status.HTTP_200_OK,
         )
-# class UpcomingEventAPI(APIView):
-#     authentication_classes =[JWTAuthentication]
-#     permission_classes =[IsAuthenticated]
 
-#     def get(self,request):
-#         today = timezone.localdate()
-#         tomorrow = today + timedelta(days=1)
-#         selected_date = request.query_params.get("date")
-
-#         base_queryset = Event.objects.filter(del_flag=0,status="PUBLISHED",
-#             show_in_app=True,)
-        
-#         if selected_date:
-#             events = base_queryset.filter(
-#                 event_date=selected_date
-#             ).order_by("event_date", "start_time")
-
-#         else:
-#             events = base_queryset.filter(
-#                 event_date__in=[today, tomorrow]
-#             ).order_by("event_date", "start_time")
-
-
-        
-#         serializer = EventListSerializer(events,many=True)
-
-#         return Response(
-#             {
-#                 "status": "success",
-#                 "data": serializer.data,
-#                 "meta": {
-#                     "filter_date": selected_date,
-#                     "default_range": "today_and_tomorrow" if not selected_date else None,
-#                 },
-#             },
-#             status=status.HTTP_200_OK,
-#         )
 
 
 
@@ -235,7 +199,7 @@ class EventReminderToggleAPI(APIView):
                     created_count += 1
 
             # Analytics hook (later implementation)
-            # log_event_analytics(request, event, "REMIND_CLICK")
+            log_event_analytics(request, event, "REMIND_ENABLE")
 
             return Response(
                 {
@@ -271,7 +235,7 @@ class EventReminderToggleAPI(APIView):
             ).delete()
 
             # Analytics hook
-            # log_event_analytics(request, event, "REMIND_REMOVE")
+            log_event_analytics(request, event, "REMIND_DISABLE")
 
             return Response(
                 {

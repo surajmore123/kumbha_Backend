@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+
+
 from .models import EventRemider,Event,EventAnalytics
 
 from django.contrib import admin
@@ -175,3 +177,5 @@ class EventAnalyticsAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+

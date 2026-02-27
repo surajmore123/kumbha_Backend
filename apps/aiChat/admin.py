@@ -4,6 +4,7 @@ from .models import ChatSession, ChatMessage
 
 @admin.register(ChatSession)
 class ChatSessionAdmin(admin.ModelAdmin):
+    readonly_fields = ("created_at", "updated_at", "last_login")
     list_display = (
         "session_id",
         "user",
@@ -33,6 +34,7 @@ class ChatSessionAdmin(admin.ModelAdmin):
 
 @admin.register(ChatMessage)
 class ChatMessageAdmin(admin.ModelAdmin):
+    
     list_display = (
         "message_id",
         "session",
@@ -60,5 +62,8 @@ class ChatMessageAdmin(admin.ModelAdmin):
     
 
     def short_content(self, obj):
-        return obj.content[:40] + ("..." if len(obj.content) > 40 else "")
+        content = obj.content or ""
+        return content[:40] + ("..." if len(content) > 40 else "")
+    
+    
     short_content.short_description = "Content"

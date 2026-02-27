@@ -9,13 +9,14 @@ class EventAnalytics(models.Model):
     EVENT_TYPE_CHOICES = [
         ("VIEW", "Viewed Event"),
         ("DETAIL_OPEN", "Opened Event Details"),
-        ("REMIND_CLICK", "Clicked Reminder"),
+        ("REMIND_ENABLE", "Reminder Enabled"),
+        ("REMIND_DISABLE", "Reminder Disabled"),
     ]
 
     analytics_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     user = models.ForeignKey(
-        "authentication.User",
+        User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
