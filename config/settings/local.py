@@ -19,7 +19,7 @@ load_dotenv(ENV_FILE)
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.25","192.168.1.36","192.168.1.5","192.168.1.4","192.168.1.3",]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.25","192.168.1.45","192.168.1.5","192.168.1.4","192.168.1.3",]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "apps.temples",
     "apps.events",
     "django_celery_beat",
+    "apps.crowd",
  
 ]
 

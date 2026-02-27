@@ -8,6 +8,7 @@ from .models import User, Otp
 class UserAdmin(BaseUserAdmin):
     """Admin config for custom User model with phone_number as username."""
     model = User
+    readonly_fields = ("created_at", "updated_at", "last_login")
 
     # columns in list view
     list_display = (
@@ -25,6 +26,7 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ("phone_number", "email", "full_Name")
 
     # fields shown on the user change page
+    
     fieldsets = (
         (None, {"fields": ("phone_number", "password")}),
         (_("Personal info"), {"fields": ("full_Name", "email", "profile_pic_url")}),

@@ -1,6 +1,6 @@
 # temples/admin.py
 from django.contrib import admin
-from .models import Temple
+from .models import Temple, TempleAnalyticsView
 
 @admin.register(Temple)
 class TempleAdmin(admin.ModelAdmin):
@@ -28,3 +28,35 @@ class TempleAdmin(admin.ModelAdmin):
             "fields": ("is_active",)
         }),
     )
+
+
+@admin.register(TempleAnalyticsView)
+class TempleAnalyticsViewAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "event_id",
+        "temple",
+        "user",
+        "event_type",
+        "created_at",
+    )
+
+    list_filter = (
+        "event_type",
+        "created_at",
+    )
+
+    search_fields = (
+        "temple__name",
+        "user__phone_number",
+        "user__email",
+    )
+
+    readonly_fields = (
+        "event_id",
+        "created_at",
+    )
+
+    ordering = ("-created_at",)
+
+    autocomplete_fields = ("temple", "user")
