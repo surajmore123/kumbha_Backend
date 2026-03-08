@@ -1,0 +1,51 @@
+services:
+
+  web:
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: kumbha_path
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+
+  celery_worker:
+    build: .
+    command: celery -A apps.celery worker -l info
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - db
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+
+  celery_beat:
+    build: .
+    command: celery -A apps.celery beat -l info
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - db
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+
+volumes:
+  postgres_data:

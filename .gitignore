@@ -13,6 +13,31 @@ Add the following lines:
 envs/.env.local
 config/credentials/
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Django
+staticfiles/
+media/
+
+# Env files
+.env
+env/
+venv/
+
+# Gunicorn
+gunicorn.ctl
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
 
 ✅ This ensures env files are never tracked by Git.
 

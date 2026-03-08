@@ -18,8 +18,9 @@ load_dotenv(ENV_FILE)
 # ==== CORE SETTINGS ===='
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
-CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.28","192.168.1.45","192.168.1.5","192.168.1.4","192.168.1.6","10.228.10.30"]
+# CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
+CELERY_BROKER_URL = "redis://redis:6379/0"
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.28","192.168.1.45","192.168.1.5","192.168.1.32","192.168.1.6","10.228.10.30"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -40,6 +41,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -106,8 +108,7 @@ USE_TZ = True
 USE_I18N = True
 USE_TZ = True
 
-# ==== STATIC / MEDIA ====
-STATIC_URL = "static/"
+
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -135,8 +136,8 @@ SIMPLE_JWT = {
 AUTH_USER_MODEL = "authentication.User"
 
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [APPS_DIR / "static"]
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+# STATICFILES_DIRS = [APPS_DIR / "static"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
