@@ -20,7 +20,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 # CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 CELERY_BROKER_URL = "redis://redis:6379/0"
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.28","192.168.1.45","192.168.1.5","192.168.1.32","192.168.1.6","10.228.10.30"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.28","10.184.4.30","192.168.1.5","192.168.1.32","192.168.1.6","10.228.10.30"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -141,4 +141,4 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
