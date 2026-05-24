@@ -20,7 +20,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 # CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 CELERY_BROKER_URL = "redis://redis:6379/0"
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.28","10.184.4.30","192.168.1.5","192.168.1.32","192.168.1.6","10.228.10.30","kumbha-backend.onrender.com"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.12","10.184.4.30","192.168.1.5","192.168.1.42","192.168.1.6","192.168.1.7","kumbha-backend.onrender.com"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
