@@ -10,5 +10,7 @@ urlpatterns = [
     path('events/', include('apps.events.urls')),
     path('crowd/', include('apps.crowd.urls')),
     path('journal/', include('apps.journal.urls')),
+    # Website (kumbhapath.in) API
+    path('v1/', include('apps.website.urls')),
     
 ]

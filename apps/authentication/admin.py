@@ -15,11 +15,12 @@ class UserAdmin(BaseUserAdmin):
         "phone_number",
         "email",
         "full_Name",
+        "role",
         "otp_verified",
         "is_staff",
         "is_active",
     )
-    list_filter = ("is_staff", "is_superuser", "is_active", "otp_verified")
+    list_filter = ("role", "is_staff", "is_superuser", "is_active", "otp_verified")
 
     # which field is used as the identifier
     ordering = ("phone_number",)
@@ -29,7 +30,7 @@ class UserAdmin(BaseUserAdmin):
     
     fieldsets = (
         (None, {"fields": ("phone_number", "password")}),
-        (_("Personal info"), {"fields": ("full_Name", "email", "profile_pic_url")}),
+        (_("Personal info"), {"fields": ("full_Name", "email", "profile_pic_url", "role", "preferred_language")}),
         (
             _("Permissions"),
             {

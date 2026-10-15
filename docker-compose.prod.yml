@@ -18,7 +18,9 @@ x-app: &app
     RDS_HOST: kb-db
     RDS_PORT: "5432"
     CELERY_BROKER_URL: redis://kb-redis:6379/0
-    EXTRA_ALLOWED_HOSTS: api.kumbhapath.in,kumbha-backend
+    EXTRA_ALLOWED_HOSTS: api.kumbhapath.in,kumbhapath.in,www.kumbhapath.in,kumbha-backend
+    # Website API (apps/website): shared rate limits; other KP_* settings come from .env
+    KP_REDIS_URL: redis://kb-redis:6379/1
   volumes:
     - media:/app/media
   restart: unless-stopped
