@@ -9,6 +9,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from .models import FCMDevice
+from .otp import OtpError
+
+
+def otp_error_response(exc):
+    return Response({"status": "error", "errors": {exc.field: [exc.message]}}, status=exc.status)
 
 
 class SendMobileOtpView(APIView):
@@ -18,7 +23,10 @@ class SendMobileOtpView(APIView):
         serializer = MobileOtpRequestSerializer(data=request.data)
 
         if serializer.is_valid():
-            data = serializer.save()
+            try:
+                data = serializer.save()
+            except OtpError as exc:
+                return otp_error_response(exc)
 
             return Response({
                     "status": "success",
@@ -44,7 +52,11 @@ class VerifyMobileOtpView(APIView):
     def post(self,request):
         serializer = VerifyMobileOtpSerializer(data=request.data)
 
-        if serializer.is_valid():
+        try:
+            valid = serializer.is_valid()
+        except OtpError as exc:
+            return otp_error_response(exc)
+        if valid:
             data = serializer.save()
             return Response({
                 "status": "success", "message": data["message"],

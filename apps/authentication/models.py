@@ -92,7 +92,9 @@ class Otp(models.Model):
         related_name="otps",
     )
 
-    otp_code = models.CharField(max_length=6)
+    # Keyed hash of the code (never the code itself), see apps/authentication/otp.py.
+    otp_code = models.CharField(max_length=64)
+    attempts = models.SmallIntegerField(default=0)  # wrong codes entered for this OTP
     expiry_time = models.DateTimeField()
     is_used = models.BooleanField(default=False)
     is_del = models.SmallIntegerField(default=0)
@@ -113,18 +115,6 @@ class Otp(models.Model):
 
     def is_expired(self):
         return timezone.now() > self.expiry_time
-
-    @classmethod
-    def create_static_otp(cls, user):
-        """Helper for testing/dev; creates 111111 OTP valid for 5 minutes."""
-        return cls.objects.create(
-            user=user,
-            otp_code="111111",
-            expiry_time=timezone.now() + timedelta(minutes=5),
-        )
-
-
-
 
 
 class FCMDevice(models.Model):

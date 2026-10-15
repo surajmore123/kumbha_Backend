@@ -71,10 +71,10 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(Otp)
 class OtpAdmin(admin.ModelAdmin):
-    list_display = ("otp_id", "user", "otp_code", "is_used", "is_del", "expiry_time")
+    list_display = ("otp_id", "user", "attempts", "is_used", "is_del", "expiry_time")
     list_filter = ("is_used", "is_del")
-    search_fields = ("user__phone_number", "user__email", "otp_code")
-    readonly_fields = ("created_at", "updated_at")
+    search_fields = ("user__phone_number", "user__email")
+    readonly_fields = ("otp_code", "created_at", "updated_at")
 
 
 # register custom User admin

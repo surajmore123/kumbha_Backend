@@ -1,7 +1,9 @@
 from rest_framework import serializers
 from django.utils import timezone
 from datetime import timedelta
-from .models import User,Otp
+from .models import User
+from .otp import check_otp, normalize_phone, send_otp
+from apps.website.core import user_by_phone
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from django.core.files.storage import default_storage
 from apps.aiChat.models import ChatSession,ChatMessage
@@ -13,32 +15,18 @@ class MobileOtpRequestSerializer(serializers.Serializer):
 
 
     def validate_phone_number(self,value):
-        value = value.strip()
-
-        if value.startswith("+91"):
-            value = value[3:]
-        elif value.startswith("91") and len(value) ==12:
-            value = value[2:]
-
-        if not (value.isdigit() and len(value) == 10 and value[0] in "6789"):
+        phone = normalize_phone(value)
+        if not phone:
             raise serializers.ValidationError("Enter a valid 10-digit Indian mobile number.")
-        
+        return phone
 
-        return f"+91{value}"
-    
     def create(self, validated_data):
-        phone_number = validated_data['phone_number']
+        phone = validated_data['phone_number']
 
-        user, create = User.objects.get_or_create(
-            phone_number=phone_number,
-            defaults={'is_active': True}
+        # Same account as the website (numbers may be stored with or without +91).
+        user = user_by_phone(phone) or User.objects.create(phone_number=f"+91{phone}", is_active=True)
 
-        )
-
-        otp_obj = Otp.objects.create(user=user,
-            otp_code="111111", 
-            expiry_time=timezone.now() + timedelta(minutes=5))
-        
+        otp_obj = send_otp(user, phone)
 
         return {
             "user_id": user.user_id,
@@ -50,54 +38,25 @@ class MobileOtpRequestSerializer(serializers.Serializer):
 
 class VerifyMobileOtpSerializer(serializers.Serializer):
     phone_number = serializers.CharField(max_length=15)
-    otp_code = serializers.CharField(max_length=6)
+    otp_code = serializers.RegexField(r"^\d{6}$", max_length=6)
 
     def validate(self,attrs):
-        phone_number = attrs.get("phone_number")
-        otp_code = attrs.get("otp_code")
-
-
-        if phone_number.startswith("+91"):
-            phone_number = phone_number[3:]
-        elif phone_number.startswith("91") and len("phone_number") ==12:
-            phone_number = phone_number[2:]
-
-        if not(phone_number.isdigit() and len(phone_number)==10 and phone_number[0] in "6789"):
+        phone = normalize_phone(attrs.get("phone_number"))
+        if not phone:
             raise serializers.ValidationError("Enter a valid 10-digit Indian mobile number.")
-        
-        phone_number =f"+91{phone_number}"
 
-        try:
-            user = User.objects.get(phone_number=phone_number)
-        except User.DoesNotExist:
+        user = user_by_phone(phone)
+        if user is None:
             raise serializers.ValidationError("User does not exist")
-        
-        try:
-            otp_obj =(
-                Otp.objects.filter(user=user,is_used=False,
-                    is_del=False)
-            ).latest("created_at")
 
-        except Otp.DoesNotExist:
-            raise serializers.ValidationError("No active OTP found. Please request a new one.")
-        
-        if otp_obj.otp_code != otp_code:
-            raise serializers.ValidationError("Invalid OTP code.")
-        
-        if otp_obj.is_expired():
-             raise serializers.ValidationError("OTP has expired. Please request a new one.")
-        
-        attrs["user"] =user
-        attrs["otp_obj"] = otp_obj
+        attrs["user"] = user
+        attrs["otp_obj"] = check_otp(user, phone, attrs["otp_code"])  # raises OtpError
 
         return attrs
     
 
     def create(self,validated_data):
-        otp_obj = validated_data["otp_obj"]
         user = validated_data["user"]
-        otp_obj.is_used = True
-        otp_obj.save(update_fields=["is_used"])
 
         user.otp_verified = True
         user.save(update_fields=["otp_verified"])
