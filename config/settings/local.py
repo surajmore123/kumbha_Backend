@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "apps.crowd",
     "apps.journal",
+    "apps.website",
  
 ]
 

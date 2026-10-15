@@ -47,11 +47,15 @@ class User(AbstractBaseUser,PermissionsMixin):
 
     full_Name = models.CharField(max_length=255,null=True,blank=True)
     email = models.EmailField(max_length=255,null=True,blank=True)
-    phone_number = models.CharField(max_length=20,unique=True)
+    # Stored as "+91XXXXXXXXXX". Optional: website users who sign in with Google may have no phone.
+    phone_number = models.CharField(max_length=20,unique=True,null=True,blank=True)
     profile_pic_url = models.TextField(null=True,blank=True)
     otp_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)  
+    # Website (kumbhapath.in) fields; the website API lives in apps/website.
+    role = models.CharField(max_length=16,choices=[("user","User"),("partner","Partner"),("admin","Admin")],default="user")
+    preferred_language = models.CharField(max_length=12,default="en")
 
  
     created_at = models.DateTimeField(default=timezone.now)
