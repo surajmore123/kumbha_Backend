@@ -1,0 +1,55 @@
+# CI: runs on every push and pull request.
+# Deploys are not done from here: the server pulls main itself (deploy/auto-deploy.sh).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  django:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: kumbha_path
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-retries 10
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+      SECRET_KEY: ci-secret-key
+      DEBUG: "False"
+      RDS_DATABASE: kumbha_path
+      RDS_USERNAME: postgres
+      RDS_PASSWORD: postgres
+      RDS_HOST: localhost
+      RDS_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Django system checks
+        run: python manage.py check
+      - name: Every model change has a migration
+        run: python manage.py makemigrations --check --dry-run
+      - name: Migrations apply on a fresh database
+        run: python manage.py migrate --noinput
+      - name: Tests
+        run: python manage.py test
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Production image builds
+        run: docker build -t kumbha-backend .

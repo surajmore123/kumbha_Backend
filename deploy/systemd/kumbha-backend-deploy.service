@@ -1,0 +1,10 @@
+[Unit]
+Description=Kumbha backend: deploy new commits from GitHub main
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Pulls main first when the script isn't there yet, so the timer can be installed before it is merged.
+ExecStart=/bin/sh -c 'cd /root/kumbha_Backend && { [ -f deploy/auto-deploy.sh ] || { git fetch -q origin main && git merge -q --ff-only origin/main; }; } && if [ -f deploy/auto-deploy.sh ]; then exec sh deploy/auto-deploy.sh; fi'
+TimeoutStartSec=30min
