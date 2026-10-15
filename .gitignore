@@ -134,3 +134,7 @@ Then fill in their own values locally.
 ❌ Storing secrets in settings.py directly
 ❌ Sharing env files over GitHub
 ❌ Reusing leaked credentials
+
+# Auto-deploy state (deploy/auto-deploy.sh)
+deploy/.last-deployed
+deploy/.last-failed
