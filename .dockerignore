@@ -1,0 +1,10 @@
+.git
+.env
+.env.*
+envs/
+__pycache__/
+*.pyc
+staticfiles/
+media/
+celerybeat-schedule
+config/credentials/

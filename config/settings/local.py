@@ -19,8 +19,13 @@ load_dotenv(ENV_FILE)
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 # CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
-CELERY_BROKER_URL = "redis://redis:6379/0"
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.12","10.184.4.30","192.168.1.5","192.168.1.42","192.168.1.6","192.168.1.7","kumbha-backend.onrender.com"]
+# Extra hosts from the environment, comma separated (e.g. "api.kumbhapath.in")
+ALLOWED_HOSTS += [h.strip() for h in os.getenv("EXTRA_ALLOWED_HOSTS", "").split(",") if h.strip()]
+CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS if "." in h and not h[0].isdigit()]
+# Behind nginx, which terminates HTTPS
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 INSTALLED_APPS = [
     "django.contrib.admin",

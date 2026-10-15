@@ -1,0 +1,97 @@
+# Production stack for https://api.kumbhapath.in
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# No ports are published on the host. HTTPS is served by the KumbhaPath nginx container
+# (/root/KumbhaPath, port 443), which reaches the `web` service on the shared docker network
+# `kumbh-path_default` under the name `kumbha-backend`. Its server block lives in
+# deploy/nginx/sites/api.kumbhapath.in.conf of the KumbhaPath repo.
+# Services are prefixed `kb-` so they never clash with KumbhaPath's own `db`/`redis` names.
+
+x-app: &app
+  build: .
+  image: kumbha-backend
+  env_file: .env
+  environment: &app-env
+    DJANGO_SETTINGS_MODULE: config.settings.local
+    DEBUG: "False"
+    RDS_HOST: kb-db
+    RDS_PORT: "5432"
+    CELERY_BROKER_URL: redis://kb-redis:6379/0
+    EXTRA_ALLOWED_HOSTS: api.kumbhapath.in,kumbha-backend
+  volumes:
+    - media:/app/media
+  restart: unless-stopped
+  depends_on:
+    kb-db: { condition: service_healthy }
+    kb-redis: { condition: service_started }
+
+services:
+  web:
+    <<: *app
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60 --access-logfile -
+    networks:
+      default: {}
+      kumbhapath:
+        aliases: [kumbha-backend]
+
+  celery_worker:
+    <<: *app
+    entrypoint: []
+    command: celery -A apps.celery worker -l info
+
+  celery_beat:
+    <<: *app
+    entrypoint: []
+    command: celery -A apps.celery beat -l info -s /tmp/celerybeat-schedule
+
+  kb-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${RDS_DATABASE}
+      POSTGRES_USER: ${RDS_USERNAME}
+      POSTGRES_PASSWORD: ${RDS_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  kb-redis:
+    image: redis:7
+    restart: unless-stopped
+
+  # Gets and renews the api.kumbhapath.in certificate (Cloudflare DNS-01) into KumbhaPath's
+  # certs volume; the KumbhaPath nginx reloads hourly and picks it up.
+  acme:
+    image: goacme/lego:v4.19.2
+    environment:
+      DOMAIN: api.kumbhapath.in
+      EMAIL: ${LETSENCRYPT_EMAIL:-shahaneshubham64@gmail.com}
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN:?set CF_DNS_API_TOKEN in .env}
+    volumes:
+      - certs:/certs
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        lego() { /lego --path /certs --accept-tos --email "$$EMAIL" --domains "$$DOMAIN" --dns cloudflare "$$@"; }
+        while :; do
+          if [ -f /certs/certificates/$$DOMAIN.json ]; then lego renew --days 30 && wait=12h || wait=1h
+          else lego run && wait=12h || wait=10m; fi
+          sleep $$wait
+        done
+    restart: unless-stopped
+
+networks:
+  kumbhapath:
+    external: true
+    name: kumbh-path_default
+
+volumes:
+  postgres_data:
+  media:
+  certs:
+    external: true
+    name: kumbh-path_certs
