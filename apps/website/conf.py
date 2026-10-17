@@ -1,21 +1,11 @@
 """Settings for the website API, read from KP_* environment variables (same names the old FastAPI
 backend used, so its production values can be copied over unchanged)."""
 
-import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import lru_cache
 
 DEV_SECRET = "dev-only-insecure-secret-change-me-0000000000"
-
-
-def _list(name: str) -> list[str]:
-    raw = os.getenv(name, "").strip()
-    if not raw:
-        return []
-    if raw.startswith("["):
-        return [str(v) for v in json.loads(raw)]
-    return [v.strip() for v in raw.split(",") if v.strip()]
 
 
 @dataclass(frozen=True)
@@ -28,8 +18,8 @@ class WebsiteSettings:
     redis_url: str | None = None
     max_body_bytes: int = 64_000
     rate_limit_per_minute: int = 120
-    admin_phones: list[str] = field(default_factory=list)
-    admin_emails: list[str] = field(default_factory=list)
+    admin_session_hours: int = 8  # admin panel sign-in lasts one working day
+    admin_login_attempts: int = 5  # wrong passwords per admin username before a 15-minute pause
     google_client_id: str | None = None
 
     otp_length: int = 6
@@ -62,8 +52,6 @@ def get_settings() -> WebsiteSettings:
         env=env("KP_ENV", "dev"),
         secret_key=env("KP_SECRET_KEY", DEV_SECRET),
         redis_url=env("KP_REDIS_URL"),
-        admin_phones=_list("KP_ADMIN_PHONES"),
-        admin_emails=[e.lower() for e in _list("KP_ADMIN_EMAILS")],
         google_client_id=env("KP_GOOGLE_CLIENT_ID"),
         sms_provider=env("KP_SMS_PROVIDER", "console"),
         msg91_auth_key=env("KP_MSG91_AUTH_KEY"),

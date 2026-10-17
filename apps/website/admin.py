@@ -1,6 +1,21 @@
 from django.contrib import admin
 
-from .models import Announcement, Enquiry, Listing, Partner, SafetyCard, UserItem, WaitlistEntry
+from .models import AdminAccount, Announcement, Enquiry, Listing, Partner, SafetyCard, UserItem, WaitlistEntry
+
+
+@admin.register(AdminAccount)
+class AdminAccountAdmin(admin.ModelAdmin):
+    """Read-only list of who can use the website admin panel. Accounts are managed in the panel itself
+    (Admins section) or with `manage.py create_admin`, so passwords are never set here."""
+
+    list_display = ("username", "name", "is_active", "last_login_at", "created_at")
+    list_filter = ("is_active",)
+    search_fields = ("username", "name")
+    exclude = ("password_hash",)
+    readonly_fields = ("username", "name", "is_active", "last_login_at", "failed_logins", "locked_until", "token_version")
+
+    def has_add_permission(self, request):
+        return False
 
 
 @admin.register(Listing)

@@ -453,3 +453,77 @@ class AnnouncementOut(ApiModel):
     ends_on: date | None
     created_at: datetime
     updated_at: datetime
+
+
+# ───────────────────────── admin panel accounts ─────────────────────────
+
+Username = Annotated[str, Field(min_length=3, max_length=40, pattern=r"^[a-zA-Z0-9._-]+$")]
+Password = Annotated[str, Field(min_length=8, max_length=128)]
+
+
+class AdminLogin(ApiModel):
+    username: str = Field(min_length=1, max_length=40)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class AdminOut(ApiModel):
+    id: str
+    username: str
+    name: str
+    is_active: bool
+    last_login_at: datetime | None
+    created_at: datetime
+
+
+class AdminSession(ApiModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    admin: AdminOut
+
+
+class AdminCreate(ApiModel):
+    username: Username
+    name: Name
+    password: Password
+
+
+class AdminUpdate(ApiModel):
+    name: Name | None = None
+    is_active: bool | None = None
+    password: Password | None = None  # reset another admin's password
+
+
+class PasswordChange(ApiModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: Password
+
+
+# ───────────────────────── CMS (page text + image library) ─────────────────────────
+
+PageId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{0,39}$")]
+ContentKey = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{0,39}(\.[a-z0-9_-]{1,40}){1,3}$", max_length=120)]
+ContentValue = Annotated[str, Field(max_length=5000)]
+
+
+class ContentUpdate(ApiModel):
+    # null resets a field to the website's built-in text
+    values: dict[ContentKey, ContentValue | None] = Field(max_length=200)
+
+
+class ContentEntry(ApiModel):
+    key: str
+    value: str
+    updated_at: datetime
+    updated_by_name: str | None = None
+
+
+class MediaOut(ApiModel):
+    id: str
+    name: str
+    url: str  # "/media/<id>.<ext>", relative to /api/v1 (the website adds its API base URL)
+    content_type: str
+    size: int
+    width: int | None
+    height: int | None
+    created_at: datetime

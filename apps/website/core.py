@@ -98,6 +98,46 @@ def decode_access_token(token: str) -> dict:
     return payload
 
 
+# ───────────────────────── admin panel accounts ─────────────────────────
+
+_SCRYPT = {"n": 2**14, "r": 8, "p": 1}
+
+
+def hash_password(password: str) -> str:
+    """scrypt with a random salt, stored as scrypt$<salt hex>$<hash hex>."""
+    salt = secrets.token_bytes(16)
+    digest = hashlib.scrypt(password.encode(), salt=salt, dklen=32, **_SCRYPT)
+    return f"scrypt${salt.hex()}${digest.hex()}"
+
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        algo, salt, expected = stored.split("$")
+    except ValueError:
+        return False
+    if algo != "scrypt":
+        return False
+    digest = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), dklen=32, **_SCRYPT)
+    return hmac.compare_digest(digest.hex(), expected)
+
+
+def create_admin_token(admin_id: str, token_version: int) -> tuple[str, int]:
+    """Admin panel session. Its own token type, so a website/app user's token can never open the admin API."""
+    s = get_settings()
+    expires_in = s.admin_session_hours * 3600
+    now = utcnow()
+    payload = {"sub": admin_id, "ver": token_version, "type": "admin", "iat": now, "exp": now + timedelta(seconds=expires_in)}
+    return jwt.encode(payload, s.secret_key, algorithm=s.jwt_algorithm), expires_in
+
+
+def decode_admin_token(token: str) -> dict:
+    s = get_settings()
+    payload = jwt.decode(token, s.secret_key, algorithms=[s.jwt_algorithm], options={"require": ["exp", "sub"]})
+    if payload.get("type") != "admin":
+        raise jwt.InvalidTokenError("wrong token type")
+    return payload
+
+
 # ───────────────────────── users (shared with the mobile app) ─────────────────────────
 
 
@@ -218,11 +258,12 @@ SECURITY_HEADERS = {
 
 
 class Ctx:
-    """What a handler gets: the request, the signed-in user (or None), parsed body/query/path."""
+    """What a handler gets: the request, the signed-in user or admin (or None), parsed body/query/path."""
 
     def __init__(self, request: HttpRequest):
         self.request = request
         self.user = None
+        self.admin = None  # AdminAccount on auth="admin" endpoints
         self.body: Any = None
         self.query: Any = None
         self.headers: dict[str, str] = {}
@@ -243,6 +284,23 @@ def _user_from_header(request: HttpRequest):
     if user is None or not user.is_active:
         raise AppError(401, "invalid_token", "Please sign in again.")
     return user
+
+
+def _admin_from_header(request: HttpRequest):
+    """Admin panel accounts only: website/app user tokens (whatever their role) are refused."""
+    from .models import AdminAccount
+
+    scheme, _, token = request.META.get("HTTP_AUTHORIZATION", "").partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise AppError(401, "not_authenticated", "Please sign in to the admin panel.")
+    try:
+        payload = decode_admin_token(token.strip())
+    except jwt.PyJWTError as exc:
+        raise AppError(401, "invalid_token", "Your admin session has ended. Please sign in again.") from exc
+    admin = AdminAccount.objects.filter(pk=str(payload["sub"])[:32]).first()
+    if admin is None or not admin.is_active or admin.token_version != payload.get("ver"):
+        raise AppError(401, "invalid_token", "Your admin session has ended. Please sign in again.")
+    return admin
 
 
 def _parse(adapter: TypeAdapter, data: Any, loc: str | None = None) -> Any:
@@ -269,12 +327,15 @@ def endpoint(
     path: dict[str, Any] | None = None,
     limit: tuple[str, int] | None = None,
     status: int = 200,
+    max_body: int | None = None,
 ):
     """Turn `handler(ctx, **path_params)` into a Django view.
 
-    auth: None (anonymous), "optional", "user" or "admin". body/query: pydantic models (query may also be a
-    dict of {name: type}). path: {name: type} to validate URL parts. limit: (name, per_minute) per IP.
-    The handler returns a pydantic model, a list of them, a dict, or None (204).
+    auth: None (anonymous), "optional", "user" (website/app user in ctx.user) or "admin" (admin panel account
+    in ctx.admin). body/query: pydantic models (query may also be a dict of {name: type}). path: {name: type}
+    to validate URL parts. limit: (name, per_minute) per IP. max_body: bytes allowed in the request body when
+    an endpoint needs more than the usual limit (image upload). The handler returns a pydantic model, a list
+    of them, a dict, an HttpResponse (sent as is), or None (204).
     """
     body_adapter = TypeAdapter(body) if body else None
     query_adapter = TypeAdapter(query) if isinstance(query, type) else None
@@ -301,7 +362,8 @@ def endpoint(
                 resp = _json(500, {"error": {"code": "internal_error", "message": "Something went wrong. Please try again."}})
             resp["X-Request-ID"] = rid
             for k, v in SECURITY_HEADERS.items():
-                resp[k] = v
+                if not resp.has_header(k):  # a handler may loosen one on purpose (e.g. images for other sites)
+                    resp[k] = v
             if get_settings().is_prod:
                 resp["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
             return resp
@@ -309,19 +371,20 @@ def endpoint(
         def _run(request: HttpRequest, kwargs: dict) -> HttpResponse:
             s = get_settings()
             ctx = Ctx(request)
+            body_limit = max_body or s.max_body_bytes
             declared = request.META.get("CONTENT_LENGTH")
-            if declared and declared.isdigit() and int(declared) > s.max_body_bytes:
+            if declared and declared.isdigit() and int(declared) > body_limit:
                 raise AppError(413, "payload_too_large", "Request body is too large.")
 
             # Same order as the old FastAPI app: route rate limit, sign-in, then path/query/body validation.
             if limit:
                 enforce(f"{limit[0]}:{ctx.ip}", limit[1], 60)
-            if auth:
+            if auth == "admin":
+                ctx.admin = _admin_from_header(request)
+            elif auth:
                 ctx.user = _user_from_header(request)
-                if auth in ("user", "admin") and ctx.user is None:
+                if auth == "user" and ctx.user is None:
                     raise AppError(401, "not_authenticated", "Please sign in.")
-                if auth == "admin" and ctx.user.role != "admin":
-                    raise AppError(403, "forbidden", "You don't have access to this.")
             for name, adapter in path_adapters.items():
                 kwargs[name] = _parse(adapter, kwargs[name], name)
             if query_adapter:
@@ -347,6 +410,8 @@ def endpoint(
             result = fn(ctx, **kwargs)
             if result is None:
                 return HttpResponse(status=204)
+            if isinstance(result, HttpResponse):
+                return result
             if isinstance(result, BaseModel):
                 content = result.model_dump_json()
             elif isinstance(result, list) and all(isinstance(r, BaseModel) for r in result):

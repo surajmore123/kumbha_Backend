@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.urls import path, re_path
 
 from .core import global_limit, methods
-from .views import account, admin, auth, public
+from .views import account, admin, admin_auth, auth, content, public
 
 
 def not_found(request, *args, **kwargs):
@@ -28,6 +28,9 @@ urlpatterns = [
     path("enquiries/me", methods(get=public.my_enquiries)),
     path("waitlist", methods(post=public.join_waitlist)),
     path("announcements", methods(get=public.current_announcements)),
+    # CMS: page text and images edited in the admin panel
+    path("content/<str:page>", methods(get=content.page_content)),
+    path("media/<str:filename>", methods(get=content.media_file)),
     # partner portal
     path("partners", methods(post=account.apply_partner)),
     path("partners/me", methods(get=account.my_partner)),
@@ -38,6 +41,15 @@ urlpatterns = [
     path("me/safety-cards/<str:card_id>", methods(put=account.update_card, delete=account.delete_card)),
     path("me/items", methods(get=account.list_items)),
     path("me/items/<str:kind>/<str:key>", methods(put=account.put_item, delete=account.delete_item)),
+    # admin panel: its own accounts (username + password), separate from website/app users
+    path("admin/auth/login", methods(post=admin_auth.login)),
+    path("admin/auth/me", methods(get=admin_auth.me)),
+    path("admin/auth/password", methods(post=admin_auth.change_password)),
+    path("admin/accounts", methods(get=admin_auth.list_accounts, post=admin_auth.create_account)),
+    path("admin/accounts/<str:admin_id>", methods(patch=admin_auth.update_account)),
+    path("admin/content/<str:page>", methods(get=content.admin_page_content, put=content.save_page_content)),
+    path("admin/media", methods(get=content.list_media, post=content.upload_media)),
+    path("admin/media/<str:media_id>", methods(delete=content.delete_media)),
     # admin
     path("admin/stats", methods(get=admin.stats)),
     path("admin/listings", methods(get=admin.list_listings)),
