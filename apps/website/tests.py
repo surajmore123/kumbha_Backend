@@ -1,5 +1,7 @@
 import json
 import os
+import struct
+import zlib
 from datetime import timedelta
 from unittest import mock
 
@@ -8,22 +10,24 @@ from django.test import TestCase
 from apps.authentication.models import User
 
 from . import conf, core
-from .models import PhoneLock, RefreshToken
+from .models import AdminAccount, MediaFile, PhoneLock, RefreshToken
 
-USER, ADMIN = "9811111111", "9822222222"
+USER, OTHER = "9811111111", "9822222222"
+ADMIN_USER, ADMIN_PASSWORD = "root", "root-password-1"
 
 
 class ApiTestCase(TestCase):
     def setUp(self):
         # Ignore any real KP_* settings (e.g. production .env inside the container).
         env = {k: v for k, v in os.environ.items() if not k.startswith("KP_")}
-        env |= {"KP_ENV": "test", "KP_ADMIN_PHONES": f'["{ADMIN}"]', "KP_SMS_PROVIDER": "console"}
+        env |= {"KP_ENV": "test", "KP_SMS_PROVIDER": "console"}
         patcher = mock.patch.dict(os.environ, env, clear=True)
         patcher.start()
         self.addCleanup(patcher.stop)
         conf.get_settings.cache_clear()
         self.addCleanup(conf.get_settings.cache_clear)
         core._limiter = None  # fresh in-memory rate limits per test
+        AdminAccount.objects.create(username=ADMIN_USER, name="Root Admin", password_hash=core.hash_password(ADMIN_PASSWORD))
 
     def call(self, method, path, body=None, token=None, **params):
         kwargs = {"content_type": "application/json"}
@@ -44,6 +48,11 @@ class ApiTestCase(TestCase):
         self.assertEqual(status, 200, body)
         return body
 
+    def admin_login(self, username=ADMIN_USER, password=ADMIN_PASSWORD):
+        status, body = self.call("POST", "/admin/auth/login", {"username": username, "password": password})
+        self.assertEqual(status, 200, body)
+        return body["access_token"]
+
 
 class AuthTests(ApiTestCase):
     def test_otp_sign_in_creates_app_style_user(self):
@@ -61,8 +70,8 @@ class AuthTests(ApiTestCase):
         self.assertEqual(tp["user"]["id"], app_user.user_id.hex)
         self.assertEqual(tp["user"]["name"], "Ravi")
 
-    def test_admin_phone_becomes_admin(self):
-        self.assertEqual(self.login(ADMIN)["user"]["role"], "admin")
+    def test_sign_in_never_makes_admins(self):
+        self.assertEqual(self.login(OTHER)["user"]["role"], "user")
 
     def test_wrong_codes_lock_the_number(self):
         status, body = self.call("POST", "/auth/otp/request", {"phone": USER})
@@ -119,7 +128,7 @@ class AuthTests(ApiTestCase):
 class DataTests(ApiTestCase):
     def test_items_and_safety_cards_are_private(self):
         tok = self.login()["access_token"]
-        other = self.login(ADMIN)["access_token"]
+        other = self.login(OTHER)["access_token"]
         status, _ = self.call("PUT", "/me/items/plan/trip-1", {"data": {"days": 3}}, token=tok)
         self.assertEqual(status, 200)
         self.assertEqual(len(self.call("GET", "/me/items", token=tok)[1]), 1)
@@ -136,14 +145,14 @@ class DataTests(ApiTestCase):
 
     def test_partner_listing_review_flow(self):
         tok = self.login()["access_token"]
-        admin = self.login(ADMIN)["access_token"]
+        admin = self.admin_login()
         status, partner = self.call(
             "POST", "/partners", {"name": "Godavari Stay", "category": "hotels", "contact_phone": USER, "town": "Nashik"}, token=tok
         )
         self.assertEqual(status, 201)
         listing = {"name": "Riverside", "type": "Hotel", "town": "Nashik", "area": "Panchavati", "price_from": 2500, "unit": "per night"}
         self.assertEqual(self.call("POST", "/partners/me/listings", listing, token=tok)[0], 403)
-        self.assertEqual(self.call("GET", "/admin/partners", token=tok)[0], 403)
+        self.assertEqual(self.call("GET", "/admin/partners", token=tok)[0], 401)
         self.assertEqual(self.call("POST", f"/admin/partners/{partner['id']}/status", token=admin, status="verified")[0], 200)
         status, created = self.call("POST", "/partners/me/listings", listing, token=tok)
         self.assertEqual((status, created["status"]), (201, "pending"))
@@ -154,7 +163,7 @@ class DataTests(ApiTestCase):
 
     def test_enquiry_and_admin_user_management(self):
         tok = self.login()["access_token"]
-        admin = self.login(ADMIN)["access_token"]
+        admin = self.admin_login()
         status, e = self.call("POST", "/enquiries", {"subject": "Room", "name": "Ravi", "phone": USER, "people": 2})
         self.assertEqual(status, 201)
         self.assertEqual(len(self.call("GET", "/enquiries/me", token=tok)[1]), 1)  # matched by verified mobile
@@ -172,3 +181,124 @@ class DataTests(ApiTestCase):
         self.assertEqual((status, body["error"]["code"]), (405, "http_error"))
         status, body = self.call("POST", "/waitlist", {"name": "A", "contact": "nope"})
         self.assertEqual((status, body["error"]["code"]), (422, "validation_error"))
+
+
+class AdminPanelTests(ApiTestCase):
+    def test_wrong_password_and_lockout(self):
+        bad = {"username": ADMIN_USER, "password": "nope-nope"}
+        status, body = self.call("POST", "/admin/auth/login", bad)
+        self.assertEqual((status, body["error"]["code"]), (401, "admin_login_failed"))
+        # Unknown usernames get the same answer, so usernames can't be guessed.
+        status2, body2 = self.call("POST", "/admin/auth/login", {"username": "ghost", "password": "x"})
+        self.assertEqual((status2, body2["error"]["message"]), (401, body["error"]["message"]))
+        for _ in range(4):
+            self.call("POST", "/admin/auth/login", bad)
+        status, body = self.call("POST", "/admin/auth/login", {"username": ADMIN_USER, "password": ADMIN_PASSWORD})
+        self.assertEqual((status, body["error"]["code"]), (423, "admin_locked"))
+
+    def test_admin_and_user_sessions_are_separate(self):
+        admin = self.admin_login()
+        self.assertEqual(self.call("GET", "/admin/auth/me", token=admin)[1]["username"], ADMIN_USER)
+        self.assertEqual(self.call("GET", "/auth/me", token=admin)[0], 401)  # not a website session
+        user = self.login()["access_token"]
+        self.assertEqual(self.call("GET", "/admin/auth/me", token=user)[0], 401)
+        # Even a user whose role was set to "admin" (old data) can't open the admin API.
+        User.objects.update(role="admin")
+        self.assertEqual(self.call("GET", "/admin/stats", token=user)[0], 401)
+
+    def test_users_cannot_be_made_admins(self):
+        admin = self.admin_login()
+        uid = self.login()["user"]["id"]
+        status, body = self.call("PATCH", f"/admin/users/{uid}", {"role": "admin"}, token=admin)
+        self.assertEqual((status, body["error"]["code"]), (400, "admin_is_separate"))
+
+    def test_admins_manage_each_other(self):
+        root = self.admin_login()
+        status, priya = self.call("POST", "/admin/accounts", {"username": "priya", "name": "Priya", "password": "priya-pass-1"}, token=root)
+        self.assertEqual(status, 201, priya)
+        self.assertEqual(self.call("POST", "/admin/accounts", {"username": "PRIYA", "name": "Again", "password": "whatever-1"}, token=root)[0], 409)
+        self.assertEqual(self.call("POST", "/admin/accounts", {"username": "x1y", "name": "Short", "password": "short"}, token=root)[0], 422)
+
+        p_tok = self.admin_login("priya", "priya-pass-1")
+        self.assertEqual(len(self.call("GET", "/admin/accounts", token=p_tok)[1]), 2)
+        # Disabling an admin ends their session immediately.
+        self.assertEqual(self.call("PATCH", f"/admin/accounts/{priya['id']}", {"is_active": False}, token=root)[0], 200)
+        self.assertEqual(self.call("GET", "/admin/stats", token=p_tok)[0], 401)
+        me = self.call("GET", "/admin/auth/me", token=root)[1]["id"]
+        self.assertEqual(self.call("PATCH", f"/admin/accounts/{me}", {"is_active": False}, token=root)[0], 400)
+
+    def test_change_own_password(self):
+        root = self.admin_login()
+        wrong = self.call("POST", "/admin/auth/password", {"current_password": "bad", "new_password": "new-pass-123"}, token=root)
+        self.assertEqual(wrong[0], 400)
+        ok = self.call("POST", "/admin/auth/password", {"current_password": ADMIN_PASSWORD, "new_password": "new-pass-123"}, token=root)
+        self.assertEqual(ok[0], 200)
+        self.assertEqual(self.call("GET", "/admin/auth/me", token=root)[0], 401)  # old session ended
+        self.admin_login(ADMIN_USER, "new-pass-123")
+
+
+def tiny_png(w=3, h=2) -> bytes:
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+    raw = b"".join(b"\x00" + b"\xff\x99\x33" * w for _ in range(h))
+    ihdr = struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+
+
+class CmsTests(ApiTestCase):
+    def upload(self, data, token, content_type="image/png", name="ghat.png"):
+        resp = self.client.post(f"/api/v1/admin/media?name={name}", data=data, content_type=content_type, HTTP_AUTHORIZATION=f"Bearer {token}")
+        return resp.status_code, resp.json()
+
+    def test_page_text_edit_and_reset(self):
+        admin = self.admin_login()
+        self.assertEqual(self.call("GET", "/content/home"), (200, {}))
+        status, rows = self.call("PUT", "/admin/content/home", {"values": {"home.hero.title": "Jai Godavari", "home.hero.subtitle": "Hi"}}, token=admin)
+        self.assertEqual(status, 200, rows)
+        self.assertEqual({r["key"]: r["updated_by_name"] for r in rows}, {"home.hero.title": "Root Admin", "home.hero.subtitle": "Root Admin"})
+        self.assertEqual(self.call("GET", "/content/home")[1], {"home.hero.title": "Jai Godavari", "home.hero.subtitle": "Hi"})
+        # null resets a field to the built-in text
+        self.call("PUT", "/admin/content/home", {"values": {"home.hero.subtitle": None}}, token=admin)
+        self.assertEqual(self.call("GET", "/content/home")[1], {"home.hero.title": "Jai Godavari"})
+        # keys must belong to the page being saved, and look like keys
+        self.assertEqual(self.call("PUT", "/admin/content/home", {"values": {"about.hero.title": "x"}}, token=admin)[0], 422)
+        self.assertEqual(self.call("PUT", "/admin/content/home", {"values": {"home.<script>": "x"}}, token=admin)[0], 422)
+
+    def test_only_admins_edit_content(self):
+        user = self.login()["access_token"]
+        body = {"values": {"home.hero.title": "x"}}
+        self.assertEqual(self.call("PUT", "/admin/content/home", body, token=user)[0], 401)
+        self.assertEqual(self.call("PUT", "/admin/content/home", body)[0], 401)
+
+    def test_image_upload_serve_and_delete(self):
+        admin = self.admin_login()
+        png = tiny_png()
+        status, m = self.upload(png, admin)
+        self.assertEqual(status, 201, m)
+        self.assertEqual((m["width"], m["height"], m["content_type"], m["url"]), (3, 2, "image/png", f"/media/{m['id']}.png"))
+
+        served = self.client.get(f"/api/v1{m['url']}")
+        self.assertEqual((served.status_code, served.content, served["Content-Type"]), (200, png, "image/png"))
+        self.assertIn("immutable", served["Cache-Control"])
+        self.assertEqual(self.client.get(f"/api/v1/media/{m['id']}.jpg").status_code, 404)
+
+        # Not an image (an SVG with a script, sent as PNG) is refused by its bytes.
+        svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+        self.assertEqual(self.upload(svg, admin)[0], 415)
+
+        # In use on a page: can't be deleted until replaced there.
+        self.call("PUT", "/admin/content/home", {"values": {"home.hero.image": m["url"]}}, token=admin)
+        self.assertEqual(self.call("DELETE", f"/admin/media/{m['id']}", token=admin)[0], 409)
+        self.call("PUT", "/admin/content/home", {"values": {"home.hero.image": None}}, token=admin)
+        self.assertEqual(self.call("DELETE", f"/admin/media/{m['id']}", token=admin)[0], 200)
+        self.assertEqual(self.call("GET", "/admin/media", token=admin)[1], [])
+        self.assertFalse(MediaFile.objects.exists())
+
+    def test_upload_size_limits(self):
+        admin = self.admin_login()
+        big = tiny_png() + b"\x00" * (5 * 1024 * 1024)
+        self.assertEqual(self.upload(big, admin)[0], 413)
+        # Other endpoints keep the small body limit.
+        resp = self.client.put("/api/v1/admin/content/home", data=b"x" * 70_000, content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {admin}")
+        self.assertEqual(resp.status_code, 413)

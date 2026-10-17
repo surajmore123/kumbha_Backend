@@ -1,12 +1,13 @@
 """Website admin: overview stats, enquiry/partner/listing review, users and announcements.
-Admins are users with role "admin" (KP_ADMIN_PHONES / KP_ADMIN_EMAILS, or set in the Django admin)."""
+Only admin panel accounts (AdminAccount, signed in at /admin with username + password) can call these;
+website/app users never can, whatever their role."""
 
 from typing import Annotated
 
 from django.db.models import Count, Q
 from pydantic import Field
 
-from ..core import AppError, User, endpoint, user_by_id, user_id_str, user_out
+from ..core import AppError, User, endpoint, user_by_id, user_out
 from ..models import (
     Announcement,
     Enquiry,
@@ -191,8 +192,8 @@ def get_user(ctx, user_id: str):
 def update_user(ctx, user_id: str):
     user = _get_user(user_id)
     body = ctx.body
-    if user_id_str(user) == user_id_str(ctx.user) and (body.is_active is False or (body.role and body.role != "admin")):
-        raise AppError(400, "cannot_change_self", "You can't remove your own admin access or deactivate yourself.")
+    if body.role == "admin":
+        raise AppError(400, "admin_is_separate", "Website users can't be admins. Add an admin account under Admins instead.")
     if body.role is not None:
         user.role = body.role
     if body.is_active is not None:
@@ -220,7 +221,7 @@ def _announcement_fields(body: AnnouncementIn) -> dict:
 
 @endpoint(auth="admin", body=AnnouncementIn, status=201)
 def create_announcement(ctx):
-    a = Announcement.objects.create(**_announcement_fields(ctx.body), created_by=ctx.user)
+    a = Announcement.objects.create(**_announcement_fields(ctx.body), created_by_admin=ctx.admin)
     return AnnouncementOut.model_validate(a)
 
 

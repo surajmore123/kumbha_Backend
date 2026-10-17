@@ -204,6 +204,60 @@ class Announcement(Base):
     starts_on = models.DateField(null=True, blank=True)  # optional IST date window, inclusive
     ends_on = models.DateField(null=True, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    created_by_admin = models.ForeignKey("AdminAccount", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
 
     def __str__(self):
         return self.title
+
+
+class AdminAccount(Base):
+    """A person who runs the website admin panel (/admin). Separate from website/app users: own username +
+    password and own sessions, so a user account can never open the admin panel."""
+
+    username = models.CharField(max_length=40, unique=True)
+    name = models.CharField(max_length=80)
+    password_hash = models.CharField(max_length=200)
+    is_active = models.BooleanField(default=True)
+    last_login_at = models.DateTimeField(null=True, blank=True)
+    # Too many wrong passwords pause sign-in for this username (in the DB, so every replica enforces it).
+    failed_logins = models.IntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    # Bumped on password change / disabling so every open admin session ends at once.
+    token_version = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.name} (@{self.username})"
+
+
+class SiteContent(models.Model):
+    """One editable piece of website text or an image reference, e.g. key "home.hero.title".
+
+    Only edited fields are stored: a missing key means the website shows its built-in default.
+    """
+
+    key = models.CharField(max_length=120, primary_key=True)
+    page = models.CharField(max_length=40, db_index=True)
+    value = models.TextField()
+    updated_by = models.ForeignKey(AdminAccount, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.key
+
+
+class MediaFile(Base):
+    """An image uploaded in the admin panel. Stored in the database so every API replica can serve it and
+    nothing is lost when a container's disk is replaced."""
+
+    name = models.CharField(max_length=160)
+    content_type = models.CharField(max_length=40)
+    ext = models.CharField(max_length=8)
+    size = models.IntegerField()
+    width = models.IntegerField(null=True, blank=True)
+    height = models.IntegerField(null=True, blank=True)
+    data = models.BinaryField()
+    uploaded_by = models.ForeignKey(AdminAccount, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+
+    def __str__(self):
+        return self.name

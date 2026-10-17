@@ -114,8 +114,7 @@ def verify_otp(ctx):
 
     user = user_by_phone(phone)
     if user is None:
-        role = "admin" if phone in s.admin_phones else "user"
-        user = User.objects.create(phone_number=app_phone(phone), role=role, is_active=True, otp_verified=True)
+        user = User.objects.create(phone_number=app_phone(phone), role="user", is_active=True, otp_verified=True)
     if user.is_active is False:
         raise AppError(403, "account_disabled", "This account is disabled.")
     user.last_login = utcnow()
@@ -128,11 +127,9 @@ def verify_otp(ctx):
 def google(ctx):
     """Exchange a Google ID token (from "Sign in with Google") for Kumbh Path tokens."""
     claims = verify_google_credential(ctx.body.credential)
-    s = get_settings()
     user = User.objects.filter(email__iexact=claims["email"]).first()
     if user is None:
-        role = "admin" if claims["email"] in s.admin_emails else "user"
-        user = User.objects.create(email=claims["email"], full_Name=(claims.get("name") or "")[:80] or None, role=role, is_active=True)
+        user = User.objects.create(email=claims["email"], full_Name=(claims.get("name") or "")[:80] or None, role="user", is_active=True)
     if user.is_active is False:
         raise AppError(403, "account_disabled", "This account is disabled.")
     if not user.full_Name and claims.get("name"):
