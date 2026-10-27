@@ -79,7 +79,11 @@ def generate_snapshots():
         if previous and severity_rank(status) > severity_rank(previous.status):
             title = f"Crowd Alert: {zone.name}"
             body = f"Status changed to {status}. Please be careful."
-            send_push_to_all(title, body)
+            send_push_to_all(
+                title, body,
+                data={"type": "crowd_alert", "zone_id": zone.id, "route": "/liveCroud"},
+                category="crowd_alerts",
+            )
 
         ZoneCrowdSnapshot.objects.create(
             zone=zone,
@@ -159,7 +163,11 @@ def generate_zone_snapshot(zone):
         )
 
         # 2️⃣ Send push
-        send_push_to_all(title, body)
+        send_push_to_all(
+            title, body,
+            data={"type": "crowd_alert", "zone_id": zone.id, "route": "/liveCroud"},
+            category="crowd_alerts",
+        )
 
 def cleanup_inactive_users():
     """

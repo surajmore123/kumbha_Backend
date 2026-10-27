@@ -1,0 +1,126 @@
+{
+  "retrieved": "2026-10-27",
+  "documents": [
+    {
+      "doc_id": "wikipedia-kumbh-mela",
+      "path": "sources/wikipedia/kumbh-mela.txt",
+      "title": "Wikipedia: Kumbh Mela",
+      "organization": "Wikipedia (CC BY-SA 4.0)",
+      "source_url": "https://en.wikipedia.org/wiki/Kumbh_Mela",
+      "publication_date": "2026-10-25",
+      "version": "1381820858",
+      "language": "en",
+      "verification_status": "unverified"
+    },
+    {
+      "doc_id": "wikipedia-nashik-trimbakeshwar-simhastha",
+      "path": "sources/wikipedia/nashik-trimbakeshwar-simhastha.txt",
+      "title": "Wikipedia: Nashik-Trimbakeshwar Simhastha",
+      "organization": "Wikipedia (CC BY-SA 4.0)",
+      "source_url": "https://en.wikipedia.org/wiki/Nashik-Trimbakeshwar_Simhastha",
+      "publication_date": "2026-10-22",
+      "version": "1381412931",
+      "language": "en",
+      "verification_status": "unverified"
+    },
+    {
+      "doc_id": "wikipedia-2015-nashik-trimbakeshwar-simhastha",
+      "path": "sources/wikipedia/2015-nashik-trimbakeshwar-simhastha.txt",
+      "title": "Wikipedia: 2015 Nashik-Trimbakeshwar Simhastha",
+      "organization": "Wikipedia (CC BY-SA 4.0)",
+      "source_url": "https://en.wikipedia.org/wiki/2015_Nashik-Trimbakeshwar_Simhastha",
+      "publication_date": "2025-07-09",
+      "version": "1299531025",
+      "language": "en",
+      "verification_status": "unverified"
+    },
+    {
+      "doc_id": "wikipedia-nashik",
+      "path": "sources/wikipedia/nashik.txt",
+      "title": "Wikipedia: Nashik",
+      "organization": "Wikipedia (CC BY-SA 4.0)",
+      "source_url": "https://en.wikipedia.org/wiki/Nashik",
+      "publication_date": "2026-09-20",
+      "version": "1375898887",
+      "language": "en",
+      "verification_status": "unverified"
+    },
+    {
+      "doc_id": "wikipedia-history-of-nashik",
+      "path": "sources/wikipedia/history-of-nashik.txt",
+      "title": "Wikipedia: History of Nashik",
+      "organization": "Wikipedia (CC BY-SA 4.0)",
+      "source_url": "https://en.wikipedia.org/wiki/History_of_Nashik",
+      "publication_date": "2026-09-17",
+      "version": "1375314902",
+      "language": "en",
+      "verification_status": "unverified"
+    },
+    {
+      "doc_id": "wikipedia-trimbak",
+      "path": "sources/wikipedia/trimbak.txt",
+      "title": "Wikipedia: Trimbak",
+      "organization": "Wikipedia (CC BY-SA 4.0)",
+      "source_url": "https://en.wikipedia.org/wiki/Trimbak",
+      "publication_date": "2026-09-27",
+      "version": "1376979257",
+      "language": "en",
+      "verification_status": "unverified"
+    },
+    {
+      "doc_id": "wikipedia-trimbakeshwar-temple",
+      "path": "sources/wikipedia/trimbakeshwar-temple.txt",
+      "title": "Wikipedia: Trimbakeshwar Temple",
+      "organization": "Wikipedia (CC BY-SA 4.0)",
+      "source_url": "https://en.wikipedia.org/wiki/Trimbakeshwar_Temple",
+      "publication_date": "2026-09-12",
+      "version": "1374465048",
+      "language": "en",
+      "verification_status": "unverified"
+    },
+    {
+      "doc_id": "wikipedia-kalaram-temple",
+      "path": "sources/wikipedia/kalaram-temple.txt",
+      "title": "Wikipedia: Kalaram Temple",
+      "organization": "Wikipedia (CC BY-SA 4.0)",
+      "source_url": "https://en.wikipedia.org/wiki/Kalaram_Temple",
+      "publication_date": "2026-08-01",
+      "version": "1367098605",
+      "language": "en",
+      "verification_status": "unverified"
+    },
+    {
+      "doc_id": "wikipedia-godavari-river",
+      "path": "sources/wikipedia/godavari-river.txt",
+      "title": "Wikipedia: Godavari River",
+      "organization": "Wikipedia (CC BY-SA 4.0)",
+      "source_url": "https://en.wikipedia.org/wiki/Godavari_River",
+      "publication_date": "2026-10-25",
+      "version": "1381856660",
+      "language": "en",
+      "verification_status": "unverified"
+    },
+    {
+      "doc_id": "wikipedia-akhara",
+      "path": "sources/wikipedia/akhara.txt",
+      "title": "Wikipedia: Akhara",
+      "organization": "Wikipedia (CC BY-SA 4.0)",
+      "source_url": "https://en.wikipedia.org/wiki/Akhara",
+      "publication_date": "2026-10-26",
+      "version": "1382136975",
+      "language": "en",
+      "verification_status": "unverified"
+    },
+    {
+      "doc_id": "wikipedia-da-an-mi-sampradaya",
+      "path": "sources/wikipedia/da-an-mi-sampradaya.txt",
+      "title": "Wikipedia: Da\u015ban\u0101mi Sampradaya",
+      "organization": "Wikipedia (CC BY-SA 4.0)",
+      "source_url": "https://en.wikipedia.org/wiki/Da%C5%9Ban%C4%81mi_Sampradaya",
+      "publication_date": "2026-10-23",
+      "version": "1381517534",
+      "language": "en",
+      "verification_status": "unverified"
+    }
+  ]
+}

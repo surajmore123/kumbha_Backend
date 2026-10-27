@@ -20,7 +20,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 # CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.12","10.184.4.30","192.168.1.5","192.168.1.42","192.168.1.6","192.168.1.7","kumbha-backend.onrender.com"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.2","10.184.4.30","192.168.1.6","192.168.1.42","192.168.1.6","0.0.0.0","kumbha-backend.onrender.com"]
 # Extra hosts from the environment, comma separated (e.g. "api.kumbhapath.in")
 ALLOWED_HOSTS += [h.strip() for h in os.getenv("EXTRA_ALLOWED_HOSTS", "").split(",") if h.strip()]
 CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS if "." in h and not h[0].isdigit()]
@@ -148,3 +148,36 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+
+
+# =====================================================================
+# GURU AI (LangGraph + RAG chatbot)
+# =====================================================================
+AI = {
+    "PROVIDER": os.getenv("AI_PROVIDER", "gemini"),
+    "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
+    # Graph nodes ask for a *purpose*, never a model name.
+    #   default: final answers to the user
+    #   fast:    routing, language detection, query rewriting
+    "MODELS": {
+        "default": {
+            "name": os.getenv("AI_CHAT_MODEL", "gemini-3.8-flash"),
+            "thinking_level": os.getenv("AI_CHAT_THINKING", "low"),
+        },
+        "fast": {
+            "name": os.getenv("AI_FAST_MODEL", "gemini-3.5-flash-lite"),
+            "thinking_level": os.getenv("AI_FAST_THINKING", "minimal"),
+        },
+    },
+    # gemini-embedding-2: 100+ languages, also supports images.
+    # Changing model or dimension later = re-embedding the knowledge base.
+    "EMBEDDING_MODEL": os.getenv("AI_EMBEDDING_MODEL", "gemini-embedding-2"),
+    "EMBEDDING_DIM": int(os.getenv("AI_EMBEDDING_DIM", "768")),
+    # Leave empty for Gemini 3+ models (Google recommends their default).
+    "TEMPERATURE": float(os.getenv("AI_TEMPERATURE")) if os.getenv("AI_TEMPERATURE") else None,
+    "TIMEOUT_SECONDS": int(os.getenv("AI_TIMEOUT_SECONDS", "30")),
+    "MAX_RETRIES": int(os.getenv("AI_MAX_RETRIES", "2")),
+    # Free tier ~10-15 requests/min. 0.15/sec = 9/min. Raise on a paid key.
+    "REQUESTS_PER_SECOND": float(os.getenv("AI_REQUESTS_PER_SECOND", "0.15")),
+}

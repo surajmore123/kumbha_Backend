@@ -12,6 +12,7 @@ Add the following lines:
 .env.*
 envs/.env.local
 config/credentials/
+data/qdrant/
 
 # Python
 __pycache__/

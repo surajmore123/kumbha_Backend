@@ -2,15 +2,29 @@ from rest_framework.views import APIView
 
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.throttling import UserRateThrottle
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from .serializers import ChatRequestSerializer,ChatHistorySerializer
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
+from apps.aiChat import ai_config
+
+
+class ChatSendThrottle(UserRateThrottle):
+    """Per-user limit on model-backed messages (AI_CHAT_RATE, e.g. 20/min)."""
+
+    scope = "ai_chat"
+
+    def get_rate(self):
+        return ai_config.chat_rate()
+
+
 class ChatWithGuruApiView(APIView):
     authentication_classes =[JWTAuthentication]
     permission_classes =[IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
+    throttle_classes = [ChatSendThrottle]
 
     def post(self,request):
 

@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
-from .serializer import MobileOtpRequestSerializer,VerifyMobileOtpSerializer,UserProfileSerializer,UserProfileImageSerializer,FCMDeviceSerializer
+from .serializer import MobileOtpRequestSerializer,VerifyMobileOtpSerializer,UserProfileSerializer,UserProfileImageSerializer,FCMDeviceSerializer,NotificationPreferenceSerializer
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -8,7 +8,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .models import FCMDevice
+from .models import FCMDevice, NotificationPreference
 
 
 class SendMobileOtpView(APIView):
@@ -159,3 +159,32 @@ class RegisterFCMDeviceAPI(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+class NotificationPreferenceAPI(APIView):
+    """
+    GET   → the user's notification categories (all on by default).
+    PATCH → turn categories on/off, e.g. {"crowd_alerts": false}.
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _preference(self, request):
+        preference, _ = NotificationPreference.objects.get_or_create(user=request.user)
+        return preference
+
+    def get(self, request):
+        data = NotificationPreferenceSerializer(self._preference(request)).data
+        return Response({"status": "success", "data": data}, status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        serializer = NotificationPreferenceSerializer(
+            self._preference(request), data=request.data, partial=True,
+        )
+        if not serializer.is_valid():
+            return Response(
+                {"status": "error", "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer.save()
+        return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)

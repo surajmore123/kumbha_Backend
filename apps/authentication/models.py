@@ -158,3 +158,37 @@ class FCMDevice(models.Model):
         return f"{self.user_id} - {self.device_type}"
 
 
+
+
+class NotificationPreference(models.Model):
+    """
+    Which push notifications a user wants. A missing row means "all on".
+    Checked by utils.push_notifications before anything is sent.
+    """
+
+    CATEGORIES = (
+        "event_reminders",   # before an event the user follows
+        "event_updates",     # a followed event changed or was withdrawn
+        "new_events",        # a new event was published
+        "crowd_alerts",      # crowd level rising in a zone
+        "safety_alerts",     # serious incidents (HIGH / CRITICAL)
+    )
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="notification_preference",
+    )
+    event_reminders = models.BooleanField(default=True)
+    event_updates = models.BooleanField(default=True)
+    new_events = models.BooleanField(default=True)
+    crowd_alerts = models.BooleanField(default=True)
+    safety_alerts = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "notification_preferences"
+
+    def __str__(self):
+        return f"Notification preferences of {self.user_id}"
