@@ -1,9 +1,7 @@
 from celery import shared_task
 from django.utils import timezone
-from celery import shared_task
-from django.utils import timezone
-from utils.push_notifications import send_test_push
-from .models.schedule_notification import ScheduledNotification
+
+from apps.events.reminders import dispatch_due_reminders
 
 
 @shared_task
@@ -12,39 +10,11 @@ def test_celery_task():
     return "CELERY_OK"
 
 
-
-
-
-@shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=30, retry_kwargs={"max_retries": 3})
-def dispatch_event_reminders(self):
-    now = timezone.now()
-
-    reminders = (
-        ScheduledNotification.objects
-        .select_related("subscription__event", "subscription__user")
-        .filter(
-            scheduled_at__lte=now,
-            is_sent=False,
-            subscription__is_active=True
-        )
-        .order_by("scheduled_at")[:50]
-    )
-
-    for reminder in reminders:
-        user = reminder.subscription.user
-        event = reminder.subscription.event
-
-        # TEMPORARY: replace with FCM in next step
-
-        send_test_push(user=user,title="Event Reminder",body=f"{event.event_name} is coming soon")
-
-
-        print(
-            f"🔔 Reminder → User:{user.id} | "
-            f"Event:{event.event_name} | "
-            f"Time:{reminder.scheduled_at}"
-        )
-
-        reminder.is_sent = True
-        reminder.sent_at = timezone.now()
-        reminder.save()
+@shared_task
+def dispatch_event_reminders():
+    """
+    Runs every minute (django-celery-beat periodic task "Dispatch Event
+    Reminders Every Minute"). No automatic retries: a failed send stays
+    unsent and is picked up by the next run, so nothing is sent twice.
+    """
+    return dispatch_due_reminders()

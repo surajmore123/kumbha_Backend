@@ -1,36 +1,53 @@
 # apps/aiChat/serializers.py
 
-import os
-import base64
-import requests
-from utils.audio import convert_audio_to_mp3
-
-from django.core.files.storage import default_storage
-from django.utils import timezone
 from rest_framework import serializers
 
+from apps.aiChat import ai_config
 from apps.aiChat.models import ChatSession, ChatMessage
+from apps.aiChat.services.chat_orchestrator import handle_turn
+from apps.aiChat.services.geo import valid_coordinates
+from apps.aiChat.services.history_service import public_metadata
 
-# n8n webhook URL
-N8N_WEBHOOK_URL = "https://permeant-elbert-sulkier.ngrok-free.dev/webhook/chat"
-# alternatives (commented)
-# N8N_WEBHOOK_URL = "https://workflows.softwarecompanyindia.com/webhook/chat"
+# Anything larger than the largest per-type limit is refused before it is
+# read; per-type limits are applied when the file is processed.
+MAX_MESSAGE_CHARS = 4000
 
 
+def _max_upload_bytes() -> int:
+    return max(
+        ai_config.max_image_bytes(),
+        ai_config.max_audio_bytes(),
+        ai_config.max_document_bytes(),
+    )
+
+
+def _message_dict(message: ChatMessage, session_id: str | None = None) -> dict:
+    data = {
+        "message_id": message.message_id,
+        "role": message.role,
+        "message_type": message.message_type,
+        "content": message.content,
+        "file_url": message.file_url,
+        "metadata": public_metadata(message.metadata),
+        "created_at": message.created_at,
+    }
+    if session_id is not None:
+        data["session_id"] = session_id
+    return data
 
 
 class ChatRequestSerializer(serializers.Serializer):
     """
-    Handles sending a chat message (text / image / audio / file) to:
-    - Save in DB
-    - Call n8n webhook (with Base64 for files)
-    - Store assistant response
+    Handles sending a chat message (text / image / audio / document):
+    validates the request and session, hands the turn to
+    `chat_orchestrator.handle_turn` and returns the stored messages.
     """
 
     message = serializers.CharField(
         required=False,
         allow_blank=True,
         allow_null=True,
+        max_length=MAX_MESSAGE_CHARS,
     )
 
     session_id = serializers.UUIDField(required=False, allow_null=True)
@@ -39,6 +56,14 @@ class ChatRequestSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
+
+    # Optional, additive fields (older clients don't send them).
+    language = serializers.ChoiceField(
+        choices=["en", "hi", "mr"], required=False, allow_blank=True,
+    )
+    latitude = serializers.FloatField(required=False, allow_null=True)
+    longitude = serializers.FloatField(required=False, allow_null=True)
+    voice_reply = serializers.BooleanField(required=False, default=False)
 
     def validate(self, attrs):
         request = self.context["request"]
@@ -52,6 +77,19 @@ class ChatRequestSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"message": "Either 'message' text or 'file' is required."}
             )
+
+        if upload_file and upload_file.size > _max_upload_bytes():
+            raise serializers.ValidationError(
+                {"file": f"File is too large (max {_max_upload_bytes() // (1024 * 1024)} MB)."}
+            )
+
+        latitude, longitude = attrs.get("latitude"), attrs.get("longitude")
+        if latitude is not None or longitude is not None:
+            if not valid_coordinates(latitude, longitude):
+                raise serializers.ValidationError(
+                    {"latitude": "A valid latitude and longitude are both required."}
+                )
+            attrs["location"] = {"latitude": latitude, "longitude": longitude}
 
         # Find or create session
         if session_id:
@@ -80,154 +118,34 @@ class ChatRequestSerializer(serializers.Serializer):
                     mode="guru_ai",
                 )
 
-        # Decide message_type
-        message_type = "text"
-        if upload_file:
-            content_type = getattr(upload_file, "content_type", "") or ""
-            if content_type.startswith("image/"):
-                message_type = "image"
-            elif content_type.startswith("audio/"):
-                message_type = "audio"
-            else:
-                message_type = "file"
-
         attrs["message"] = message or ""
         attrs["user"] = user
         attrs["session"] = session
-        attrs["message_type"] = message_type
 
         return attrs
 
     def create(self, validated_data):
-        user = validated_data["user"]
         session = validated_data["session"]
-        message_text = validated_data["message"]
-        message_type = validated_data["message_type"]
-        upload_file = validated_data.get("file")
+        session_id = str(session.session_id)
 
-        file_url = None
-        file_storage_name = None
-        metadata = {}
-
-        # Save uploaded file
-        if upload_file:
-            folder = f"chat/{user.user_id}"
-            file_storage_name = default_storage.save(
-                os.path.join(folder, upload_file.name),
-                upload_file,
-            )
-            file_url = default_storage.url(file_storage_name)
-
-            metadata = {
-                "original_name": upload_file.name,
-                "content_type": getattr(upload_file, "content_type", None),
-                "size": upload_file.size,
-            }
-
-        # Save USER message
-        user_msg = ChatMessage.objects.create(
+        user_msg, assistant_msg = handle_turn(
+            user=validated_data["user"],
             session=session,
-            user=user,
-            role="user",
-            message_type=message_type,
-            content=message_text if message_type == "text" else None,
-            file_url=file_url,
-            metadata=metadata,
+            text=validated_data["message"],
+            upload_file=validated_data.get("file"),
+            language=validated_data.get("language") or "",
+            location=validated_data.get("location"),
+            voice_reply=validated_data.get("voice_reply", False),
         )
 
-        # Call n8n webhook
-        try:
-            payload = {
-                "session_id": str(session.session_id),
-                "user_id": str(user.user_id),
-                "message_type": message_type,
-                "message": message_text,
-                "file_url": file_url,
-                "metadata": metadata,
-            }
-
-            # Handle Base64 for files
-            if upload_file and file_storage_name:
-                file_path = default_storage.path(file_storage_name)
-
-                # Convert audio to MP3
-                if message_type == "audio":
-                    try:
-                        mp3_path = convert_audio_to_mp3(file_path)
-                        file_path = mp3_path
-                        metadata["content_type"] = "audio/mpeg"
-                        metadata["original_name"] = os.path.basename(mp3_path)
-                    except Exception as e:
-                        metadata["audio_conversion_error"] = str(e)
-
-                with open(file_path, "rb") as f:
-                    file_bytes = f.read()
-
-                payload["file_base64"] = base64.b64encode(file_bytes).decode("utf-8")
-                payload["file_name"] = metadata.get("original_name")
-                payload["file_mime"] = metadata.get("content_type")
-
-            n8n_response = requests.post(
-                N8N_WEBHOOK_URL,
-                json=payload,
-                timeout=30,
-            )
-            n8n_response.raise_for_status()
-
-            try:
-                n8n_data = n8n_response.json()
-            except ValueError:
-                n8n_data = {"raw": n8n_response.text}
-
-            assistant_text = (
-                n8n_data.get("reply")
-                or n8n_data.get("message")
-                or str(n8n_data)
-            )
-
-        except Exception as e:
-            assistant_text = "Sorry, I am unable to respond right now."
-            n8n_data = {"error": str(e)}
-
-        # Save ASSISTANT message
-        assistant_msg = ChatMessage.objects.create(
-            session=session,
-            role="assistant",
-            message_type="text",
-            content=assistant_text,
-            metadata={"n8n_raw": n8n_data},
-        )
-
-        # Update session timestamp
-        session.last_message_at = timezone.now()
-        session.save(update_fields=["last_message_at"])
-
-        # Response payload
+        # Return the existing API structure.
         return {
-            "session_id": str(session.session_id),
+            "session_id": session_id,
             "messages": [
-                {
-                    "message_id": user_msg.message_id,
-                    "role": user_msg.role,
-                    "content": user_msg.content,
-                    "file_url": user_msg.file_url,
-                    "metadata": user_msg.metadata,
-                    "created_at": user_msg.created_at,
-                    "session_id": str(session.session_id),
-                },
-                {
-                    "message_id": assistant_msg.message_id,
-                    "role": assistant_msg.role,
-                    "message_type": assistant_msg.message_type,
-                    "content": assistant_msg.content,
-                    "file_url": None,
-                    "created_at": assistant_msg.created_at,
-                    "session_id": str(session.session_id),
-                },
+                _message_dict(user_msg, session_id),
+                _message_dict(assistant_msg, session_id),
             ],
         }
-
-
 
 
 class ChatHistorySerializer(serializers.Serializer):
@@ -245,7 +163,7 @@ class ChatHistorySerializer(serializers.Serializer):
         user = request.user
 
         # sanitize limit
-        limit = min(attrs.get("limit", 10), 50)
+        limit = max(1, min(attrs.get("limit", 10), 50))
         attrs["limit"] = limit
 
         # validate session
@@ -288,15 +206,7 @@ class ChatHistorySerializer(serializers.Serializer):
         return {
             "session_id": str(session.session_id),
             "messages": [
-                {
-                    "message_id": msg.message_id,
-                    "role": msg.role,
-                    "message_type": msg.message_type,
-                    "content": msg.content,
-                    "file_url": msg.file_url,
-                    "metadata": msg.metadata,
-                    "created_at": msg.created_at,
-                }
+                _message_dict(msg)
                 for msg in reversed(messages)  # oldest ➜ newest for UI
             ],
             "has_more": has_more,

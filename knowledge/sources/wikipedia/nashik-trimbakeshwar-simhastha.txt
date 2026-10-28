@@ -1,0 +1,38 @@
+Source: Wikipedia, "Nashik-Trimbakeshwar Simhastha" (https://en.wikipedia.org/wiki/Nashik-Trimbakeshwar_Simhastha), revision 1381412931 of 2026-10-22. Text licensed CC BY-SA 4.0.
+
+Nashik-Trimbakeshwar Simhastha is a Hindu religious mela held every 12 years in the Nashik district of Maharashtra, India. The name of the festival is also transliterated as Sinhastha or Singhastha. It is one of the four fairs traditionally recognized as Kumbha Melas, and is also known as Nashik-Trimbak Kumbha Mela or Nashik Kumbha Mela.
+The fair involves ritual bathing on the banks of Godavari river, at the Trimbakeshwar Shiva Temple (in Trimbak) and the Ram Kund in Nashik. Until 1789, the fair was held only at Trimbak, but after a clash between Vaishnavites and Saivites, the Maratha Peshwa segregated the Vaishnavites to the Nashik city.
+
+== History ==
+
+=== Origins ===
+According to the Hindu Puranic texts, Vishnu dropped drops of amrita (the drink of immortality) at four places, while transporting it in a kumbha (pot). These four places, including Nashik, are identified as the present-day sites of the Kumbh Mela. The age of the Nashik-Trimbak Simhastha is uncertain, but its association with the kumbha myth is relatively recent, dating back to the 20th century. The Nasik District Gazetteer published during the 19th century, does not mention the term "Kumbh Mela" to describe the local Simhastha fair. The earliest extant texts that contain the name "Kumbha Mela" are Khulasat-ut-Tawarikh (1695 CE) and Chahar Gulshan (1789 CE). Both these texts use the term "Kumbh Mela" to describe only the Haridwar Kumbh Mela, although they mention the Simhastha fair at Nashik. It appears that the Nashik Simhastha adapted the kumbh myth (and the name Kumbh Mela) from the Haridwar Kumbh Mela. The Ujjain Simhastha, in turn, is an adaptation of the Nashik-Trimbak Simhastha: it began in the 18th century, when the Maratha ruler Ranoji Shinde invited ascetics from Nashik to Ujjain for a local festival.
+
+=== Mughal era ===
+The Khulasat-ut-Tawarikh (1695 CE) mentions the mela in its description of the Berar Subah, although it doesn't use the terms "Kumbh Mela" or "Simhastha" to describe it. It states that when Jupiter entered Leo or Simha (which happens once in 12 years), people from far away would come to Trimbak for a large gathering which was famous in all parts of the Mughal Empire.
+
+=== Maratha era ===
+Until 1789, the fair was originally held at Trimbak, a town near the Nashik city. That year, a clash happened between Shaivite sanyasis and Vaishnavite bairagis over order of precedence of bathing, which indicated the status of the akharas. A copperplate inscription of the Maratha Peshwa claims that 12,000 ascetics died in this clash. As a result, the Peshwa shifted the Vaishnavites' bathing place to Ramkund in the Nashik city. The Shaivites continue to regard Trimbak as the proper location of the fair.
+
+=== British era ===
+In 1861 and 1872, fights erupted at Trimbak, when some Nirmala sadhus attempted to walk naked in a procession, in imitation of a rival sect. Their rivals, as well as the British managers who wanted to keep peace, opposed them. The British administration proposed banning public nudity at the next Simhastha, but the proposal was opposed by the Naga sadhus and ultimately rejected by the British authorities.
+
+=== Independent India ===
+When the Kumbh Mela was held in Nashik, India, from 27 July to 7 September 2003, 39 pilgrims (28 women and 11 men) were trampled to death and 57 were injured. Devotees had gathered on the banks of the Godavari river for the maha snaanam or holy bath. Over 30,000 pilgrims were being held back by barricades in a narrow street leading to the Ramkund, a holy spot, so the sadhus could take the first ceremonial bath. Reportedly, a sadhu threw some silver coins into the crowd and the subsequent scramble led to the stampede.
+In 2015, the Kumbha Mela was held at Nashik-Trimbak during July–September.
+With an estimated 30 million devotees attending in 2015, the mela served as an opportunity to test out a range of smart solutions. One of the projects conducted here was by Massachusetts Institute of Technology (MIT), called the "Kumbhathon", which aimed to identify ways to improve crowd and civic management during periods of mass gathering.
+
+== Dates ==
+The Nashik-Trimbakeshwar Simhastha is held once in 12 years. The exact dates are determined according to a combination of zodiac positions: the mela may be held when Jupiter is in Leo (Simha in Hindu astrology); or when Jupiter, Sun and Moon are in Cancer on lunar conjunction (Amavasya).
+The previous fair was held in 2015–16. The next Simhastha is scheduled to begin on 31 October 2026 with flag-hoisting ceremonies (dhwajarohan) at Trimbakeshwar and at Ramkund in Nashik, and to conclude on 24 July 2028, when the flags are lowered. The schedule was announced on 1 June 2025 at a meeting of akhara representatives in Nashik chaired by Maharashtra Chief Minister Devendra Fadnavis. The three main holy bathing days, called Amrit Snan, are scheduled for 2 August 2027, 31 August 2027, and 11 September 2027 at Nashik (12 September 2027 at Trimbakeshwar).
+
+== Technological Initiatives ==
+In recent years, the Nashik-Trimbakeshwar Simhastha has implemented various technological solutions to manage large crowds and enhance the pilgrim experience. These initiatives involve collaborations between local innovators, academic institutions, and technology companies. The Massachusetts Institute of Technology (MIT) Media Lab, in partnership with local organizations, launched "Kumbhathon" to develop solutions for the 2015 Kumbh Mela, addressing crowd management, food distribution, and public health issues.
+Led by Professor Ramesh Raskar of the MIT Media Lab and involving team members including John Werner, the Kumbhathon initiative brought together local entrepreneurs, engineers, and students to create innovative solutions. 
+Key advancements included:
+
+Crowd Steering: A system utilizing mobile phone data to monitor and manage crowd flow.
+Smart Street Food: An app connecting pilgrims with local food vendors, improving food distribution and hygiene.
+Pop-up Housing: Low-cost housing solutions for temporary accommodations during the event.
+Health Monitoring: Wearable devices and mobile apps for tracking health metrics and providing real-time medical assistance.
+The collaboration between MIT Media Lab, local innovators, and various stakeholders demonstrated the potential of technology in transforming large-scale religious gatherings and urban environments.

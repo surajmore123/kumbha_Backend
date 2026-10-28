@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import SendMobileOtpView,VerifyMobileOtpView,UserProfileView,UserProfileImageUploadView,RegisterFCMDeviceAPI
+from .views import SendMobileOtpView,VerifyMobileOtpView,UserProfileView,UserProfileImageUploadView,RegisterFCMDeviceAPI,NotificationPreferenceAPI
 
 app_name = 'authentication'
 
@@ -11,4 +11,5 @@ urlpatterns = [
      path("profile/", UserProfileView.as_view(), name="user-profile"),
      path("profile/image/", UserProfileImageUploadView.as_view(), name="user-profile-image"),
      path("fcm/register/", RegisterFCMDeviceAPI.as_view(), name="fcm-register"),
+     path("notification-preferences/", NotificationPreferenceAPI.as_view(), name="notification-preferences"),
 ]

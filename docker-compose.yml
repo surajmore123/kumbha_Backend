@@ -14,7 +14,7 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.local
 
   db:
-    image: postgres:15
+    image: pgvector/pgvector:pg15
     environment:
       POSTGRES_DB: kumbha_path
       POSTGRES_USER: postgres

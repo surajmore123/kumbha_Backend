@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
 from datetime import timedelta
-from .models import User,Otp
+from .models import User,Otp,NotificationPreference
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from django.core.files.storage import default_storage
 from apps.aiChat.models import ChatSession,ChatMessage
@@ -206,3 +206,18 @@ class FCMDeviceSerializer(serializers.Serializer):
     device_type = serializers.ChoiceField(
         choices=["ANDROID", "IOS", "WEB"]
     )
+
+class NotificationPreferenceSerializer(serializers.ModelSerializer):
+    """All categories are optional on PATCH; unknown keys are rejected."""
+
+    class Meta:
+        model = NotificationPreference
+        fields = list(NotificationPreference.CATEGORIES)
+
+    def validate(self, attrs):
+        unknown = set(self.initial_data) - set(self.fields) - {"access_token"}
+        if unknown:
+            raise serializers.ValidationError(
+                {key: "Unknown notification category." for key in sorted(unknown)}
+            )
+        return attrs
