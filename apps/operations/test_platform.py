@@ -85,6 +85,7 @@ def concrete(path):
     return "/api/" + re.sub(r"<(?:(\w+):)?\w+>", lambda m: CONVERTERS[m.group(1) or "str"], path)
 
 
+@override_settings(SAFETY_REQUIRE_HTTPS=False)
 class Actors(TestCase):
     def setUp(self):
         cache.clear()

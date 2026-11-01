@@ -43,7 +43,9 @@ EXTRACTED = {"fields": {
 }}
 
 
-@override_settings(AI={**settings.AI, "GEMINI_API_KEY": "test", "LOST_FOUND_ENABLED": True})
+@override_settings(
+    SAFETY_REQUIRE_HTTPS=False, AI={**settings.AI, "GEMINI_API_KEY": "test", "LOST_FOUND_ENABLED": True},
+)
 class Scenario(TestCase):
     def setUp(self):
         cache.clear()
