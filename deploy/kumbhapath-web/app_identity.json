@@ -1,0 +1,9 @@
+{
+  "android_package": "com.example.kumbha_path",
+  "android_sha256": [],
+  "android_debug_sha256": [
+    "11:71:A5:7A:62:FB:C1:E2:D2:2E:64:0B:15:AC:9E:F7:20:90:BC:3B:57:BD:7F:85:85:7C:CB:40:0B:8B:EB:2B"
+  ],
+  "ios_bundle_id": "com.example.kumbhaPath",
+  "apple_team_id": null
+}

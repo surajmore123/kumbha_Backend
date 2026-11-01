@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "APPLE_TEAM_ID_REQUIRED.com.example.kumbhaPath"
+        ],
+        "components": [
+          {
+            "/": "/join/family",
+            "comment": "Family Safety Circle invitations"
+          },
+          {
+            "/": "/join/family/",
+            "comment": "Same, with a trailing slash"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,4 +1,5 @@
 # apps/journal/services/ai_reflection_context.py
+import logging
 from apps.authentication.models import User
 from django.utils import timezone
 from django.db.models import Count, F
@@ -14,6 +15,8 @@ from apps.crowd.models import UserZonePresence
 from apps.events.models import EventAnalytics
 from apps.temples.models import TempleAnalyticsView
 from apps.aiChat.models import ChatMessage
+
+logger = logging.getLogger(__name__)
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -283,7 +286,7 @@ def generate_ai_prompt_for_user(user):
         return prompt_text
 
     except Exception as e:
-        print("Gemini Prompt Error:", e)
+        logger.warning("Journal prompt failed (%s).", type(e).__name__)
         return "What stood out to you today during your journey?"
 
 

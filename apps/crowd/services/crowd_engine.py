@@ -1,3 +1,5 @@
+import logging
+
 from django.db.models import Count
 from django.utils import timezone
 from apps.crowd.models import AppNotification, Zone
@@ -6,6 +8,8 @@ from apps.crowd.models import UserZonePresence
 from apps.crowd.models.ZoneCrowdShanp import ZoneCrowdSnapshot
 from utils.push_notifications import send_push_to_all 
 from datetime import timedelta
+
+logger = logging.getLogger(__name__)
 
 
 def get_live_count():
@@ -70,11 +74,7 @@ def generate_snapshots():
             .first()
         )
 
-        print(
-            "ZONE:", zone.name,
-            "PREVIOUS:", previous.status if previous else None,
-            "NEW:", status
-        )
+        logger.info("Zone %s: %s -> %s", zone.code, previous.status if previous else None, status)
 
         if previous and severity_rank(status) > severity_rank(previous.status):
             title = f"Crowd Alert: {zone.name}"
@@ -136,7 +136,7 @@ def generate_zone_snapshot(zone):
 
     previous_status = previous_snapshot.status if previous_snapshot else None
 
-    print(f"ZONE: {zone.name} PREVIOUS: {previous_status} NEW: {new_status}")
+    logger.info("Zone %s: %s -> %s", zone.code, previous_status, new_status)
 
     # Always save snapshot
     ZoneCrowdSnapshot.objects.create(

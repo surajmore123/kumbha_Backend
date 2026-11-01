@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.utils import timezone
 from datetime import timedelta
 from .models import User,Otp,NotificationPreference
+from . import otp
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from django.core.files.storage import default_storage
 from apps.aiChat.models import ChatSession,ChatMessage
@@ -35,9 +36,7 @@ class MobileOtpRequestSerializer(serializers.Serializer):
 
         )
 
-        otp_obj = Otp.objects.create(user=user,
-            otp_code="111111", 
-            expiry_time=timezone.now() + timedelta(minutes=5))
+        otp_obj = otp.issue(user)
         
 
         return {
@@ -59,7 +58,7 @@ class VerifyMobileOtpSerializer(serializers.Serializer):
 
         if phone_number.startswith("+91"):
             phone_number = phone_number[3:]
-        elif phone_number.startswith("91") and len("phone_number") ==12:
+        elif phone_number.startswith("91") and len(phone_number) ==12:
             phone_number = phone_number[2:]
 
         if not(phone_number.isdigit() and len(phone_number)==10 and phone_number[0] in "6789"):
@@ -72,6 +71,16 @@ class VerifyMobileOtpSerializer(serializers.Serializer):
         except User.DoesNotExist:
             raise serializers.ValidationError("User does not exist")
         
+        # Accounts with operational or admin access never sign in by OTP. Theirs
+        # is a real credential: see apps.operations.
+        from apps.safety.models import SafetyHelper
+
+        privileged = user.is_staff or user.is_superuser or SafetyHelper.objects.filter(user=user).exclude(
+            status=SafetyHelper.Status.DEACTIVATED,
+        ).exists()
+        if privileged:
+            raise serializers.ValidationError("Use staff sign-in for this account.")
+
         try:
             otp_obj =(
                 Otp.objects.filter(user=user,is_used=False,
@@ -81,11 +90,11 @@ class VerifyMobileOtpSerializer(serializers.Serializer):
         except Otp.DoesNotExist:
             raise serializers.ValidationError("No active OTP found. Please request a new one.")
         
-        if otp_obj.otp_code != otp_code:
-            raise serializers.ValidationError("Invalid OTP code.")
-        
         if otp_obj.is_expired():
              raise serializers.ValidationError("OTP has expired. Please request a new one.")
+
+        if not otp.matches(otp_obj, phone_number, otp_code):
+            raise serializers.ValidationError("Invalid OTP code.")
         
         attrs["user"] =user
         attrs["otp_obj"] = otp_obj

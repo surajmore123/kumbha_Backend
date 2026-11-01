@@ -139,3 +139,7 @@ Then fill in their own values locally.
 # Auto-deploy state (deploy/auto-deploy.sh)
 deploy/.last-deployed
 deploy/.last-failed
+
+# Load test output
+load_tokens.json
+load_report*.json

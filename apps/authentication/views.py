@@ -1,3 +1,6 @@
+import re
+
+from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from .serializer import MobileOtpRequestSerializer,VerifyMobileOtpSerializer,UserProfileSerializer,UserProfileImageSerializer,FCMDeviceSerializer,NotificationPreferenceSerializer
@@ -8,17 +11,48 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from . import otp
 from .models import FCMDevice, NotificationPreference
+
+
+class _PhoneThrottle(SimpleRateThrottle):
+    """Per number, so a shared mobile network can't lock out its other users."""
+
+    def get_cache_key(self, request, view):
+        digits = re.sub(r"\D", "", str(request.data.get("phone_number", "")))
+        return self.cache_format % {"scope": self.scope, "ident": digits[-10:]} if digits else None
+
+
+class SendOtpPhoneThrottle(_PhoneThrottle):
+    scope = "otp_send_phone"
+    rate = "10/hour"
+
+
+class VerifyOtpPhoneThrottle(_PhoneThrottle):
+    scope = "otp_verify_phone"
+    rate = "20/hour"
+
+
+class OtpAddressThrottle(AnonRateThrottle):
+    scope = "otp_address"
+    rate = "600/hour"
 
 
 class SendMobileOtpView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [SendOtpPhoneThrottle, OtpAddressThrottle]
 
     def post(self,request):
         serializer = MobileOtpRequestSerializer(data=request.data)
 
         if serializer.is_valid():
-            data = serializer.save()
+            try:
+                data = serializer.save()
+            except otp.OtpDeliveryFailed:
+                return Response(
+                    {"status": "error", "errors": {"detail": "We couldn't send a code. Please try again shortly."}},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
 
             return Response({
                     "status": "success",
@@ -40,6 +74,7 @@ class SendMobileOtpView(APIView):
 
 class VerifyMobileOtpView(APIView):
     permission_classes =[AllowAny]
+    throttle_classes = [VerifyOtpPhoneThrottle, OtpAddressThrottle]
 
     def post(self,request):
         serializer = VerifyMobileOtpSerializer(data=request.data)

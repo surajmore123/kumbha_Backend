@@ -25,6 +25,11 @@ def _visible_events():
     )
 
 
+def visible_events():
+    """Public form of `_visible_events` for other modules (e.g. journeys)."""
+    return _visible_events()
+
+
 def _event_dict(event: Event) -> dict:
     latitude = float(event.latitude) if event.latitude is not None else None
     longitude = float(event.longitude) if event.longitude is not None else None

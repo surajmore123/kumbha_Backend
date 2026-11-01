@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Kumbh Path safety card</title>
+<!-- Shown when an ordinary camera opens a Safety QR. No scripts on purpose: the
+     code after "#" never reaches a server and this page doesn't read it. It
+     can't show who the card belongs to, and it doesn't try to. -->
+<style>
+  :root { --bg: #fbf6ee; --ink: #1f1a14; --muted: #5c5346; --accent: #b5530d; --line: #e6dccb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151210; --ink: #f3ece1; --muted: #b9ae9d; --accent: #ffb27a; --line: #3a322a; }
+  }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Devanagari", sans-serif;
+  }
+  main { max-width: 34rem; margin: 0 auto; padding: 2.5rem 1.25rem 3rem; }
+  .brand { color: var(--accent); font-weight: 600; }
+  h1 { font-family: Georgia, "Noto Serif Devanagari", serif; font-weight: 400; font-size: 1.9rem; line-height: 1.25; margin: .4rem 0 .75rem; }
+  section + section { border-top: 1px solid var(--line); margin-top: 1.75rem; padding-top: 1.5rem; }
+  h2 { font-size: 1.15rem; margin: 0 0 .35rem; }
+  p { margin: 0 0 .6rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">Kumbh Path</div>
+  <section lang="en">
+    <h1>Is this person lost or in need of help?</h1>
+    <p>Please stay with them and take them to the nearest police post, help desk or event volunteer. In an emergency, call 112.</p>
+    <p>This card can only be read by registered helpers. It doesn't show anyone's name or family here.</p>
+  </section>
+  <section lang="hi">
+    <h2>क्या यह व्यक्ति खो गया है या उन्हें मदद चाहिए?</h2>
+    <p>कृपया उनके साथ रहें और उन्हें नज़दीकी पुलिस चौकी, सहायता केंद्र या आयोजन स्वयंसेवक के पास ले जाएँ। आपात स्थिति में 112 पर कॉल करें।</p>
+    <p>यह कार्ड केवल पंजीकृत सहायक पढ़ सकते हैं। यहाँ किसी का नाम या परिवार नहीं दिखता।</p>
+  </section>
+  <section lang="mr">
+    <h2>ही व्यक्ती हरवली आहे का किंवा त्यांना मदत हवी आहे का?</h2>
+    <p>कृपया त्यांच्यासोबत राहा आणि त्यांना जवळच्या पोलीस चौकीत, मदत केंद्रात किंवा आयोजन स्वयंसेवकाकडे घेऊन जा. आणीबाणीत 112 वर कॉल करा.</p>
+    <p>हे कार्ड फक्त नोंदणीकृत मदतनीस वाचू शकतात. येथे कोणाचेही नाव किंवा कुटुंब दिसत नाही.</p>
+  </section>
+</main>
+</body>
+</html>

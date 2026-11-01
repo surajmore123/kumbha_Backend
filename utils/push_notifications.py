@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # Must match the channels the app creates (NotificationService).
 CHANNEL_ALERTS = "crowd_alerts"
 CHANNEL_EVENTS = "event_reminders"
+CHANNEL_EMERGENCY = "emergency_sos"
 
 # Drawable in the Android app (white silhouette, required for the status bar).
 ANDROID_ICON = "ic_stat_notification"
@@ -36,7 +37,7 @@ ANDROID_COLOR = "#E8761B"
 _BATCH = 500
 
 
-def _message(tokens, title, body, data, channel_id):
+def _message(tokens, title, body, data, channel_id, private=False):
     return messaging.MulticastMessage(
         tokens=tokens,
         notification=messaging.Notification(title=title, body=body),
@@ -48,6 +49,7 @@ def _message(tokens, title, body, data, channel_id):
                 icon=ANDROID_ICON,
                 color=ANDROID_COLOR,
                 sound="default",
+                visibility="private" if private else None,
             ),
         ),
         apns=messaging.APNSConfig(
@@ -73,6 +75,7 @@ def send_to_tokens(
     data=None,
     channel_id=CHANNEL_ALERTS,
     dry_run=False,
+    private=False,
 ):
     """
     Send one notification to many devices.
@@ -92,7 +95,7 @@ def send_to_tokens(
         batch = tokens[start:start + _BATCH]
         try:
             response = messaging.send_each_for_multicast(
-                _message(batch, title, body, data, channel_id), dry_run=dry_run,
+                _message(batch, title, body, data, channel_id, private), dry_run=dry_run,
             )
         except ValueError:
             # firebase_admin.initialize_app() never ran (no credentials).
@@ -162,16 +165,31 @@ def send_push_to_all(title, body, data=None, channel_id=CHANNEL_ALERTS, category
     return send_to_tokens(list(tokens), title, body, data=data, channel_id=channel_id)
 
 
+def _mirror(inbox, users, text_for_language, data):
+    """Keeps a record in the notification centre. Never allowed to stop a send."""
+    try:
+        from apps.notifications import services
+
+        services.mirror(users, inbox["category"], text_for_language, data or {}, inbox.get("key", ""))
+    except Exception as exc:
+        logger.warning("Notification record failed (%s).", type(exc).__name__)
+
+
 def send_localized(
-    category, text_for_language, *, data=None, channel_id=CHANNEL_ALERTS, users=None,
+    category, text_for_language, *, data=None, channel_id=CHANNEL_ALERTS, users=None, inbox=None, private=False,
 ):
     """
     Broadcast in each user's preferred language.
 
     `text_for_language(code)` returns (title, body) for "en", "hi" or "mr";
     devices are grouped by their user's language. `users` (a queryset or
-    list of ids) limits the audience, e.g. an event's subscribers.
+    list of ids) limits the audience, e.g. an event's subscribers. `inbox`
+    ({"category", "key"}) also records it in each person's notification
+    centre, even if they muted the push. `private` hides the text on Android
+    lock screens.
     """
+    if inbox is not None and users is not None:
+        _mirror(inbox, users, text_for_language, data)
     devices = _active_devices(category)
     if users is not None:
         devices = devices.filter(user__in=users)
@@ -183,7 +201,7 @@ def send_localized(
     total = {"status": "no_devices", "success": 0, "failure": 0, "deactivated": 0}
     for code, tokens in by_language.items():
         title, body = text_for_language(code)
-        result = send_to_tokens(tokens, title, body, data=data, channel_id=channel_id)
+        result = send_to_tokens(tokens, title, body, data=data, channel_id=channel_id, private=private)
         for key in ("success", "failure", "deactivated"):
             total[key] += result[key]
         if result["status"] == "sent" or total["status"] == "no_devices":
