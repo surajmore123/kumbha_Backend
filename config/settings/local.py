@@ -6,6 +6,8 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+from utils.observability import logging_config
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 # local.py is at: config/settings/local.py
 # So parent.parent.parent = KUMBHA_BACKEND
@@ -20,7 +22,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 # CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.2","10.184.4.30","192.168.1.6","192.168.1.42","192.168.1.6","0.0.0.0","kumbha-backend.onrender.com"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "192.168.1.2","10.184.4.30","192.168.1.6","192.168.1.42","192.168.1.5","0.0.0.0","kumbha-backend.onrender.com"]
 # Extra hosts from the environment, comma separated (e.g. "api.kumbhapath.in")
 ALLOWED_HOSTS += [h.strip() for h in os.getenv("EXTRA_ALLOWED_HOSTS", "").split(",") if h.strip()]
 CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS if "." in h and not h[0].isdigit()]
@@ -42,10 +44,24 @@ INSTALLED_APPS = [
     "apps.crowd",
     "apps.journal",
     "apps.website",
+    "apps.journeys",
+    "apps.akhadas",
+    "apps.news",
+    "apps.learn",
+    "apps.bookings",
+    "apps.family",
+    "apps.safety",
+    "apps.lostfound",
+    "apps.familylocation",
+    "apps.reunification",
+    "apps.notifications",
+    "apps.emergency",
+    "apps.operations",
  
 ]
 
 MIDDLEWARE = [
+    "utils.observability.RequestLogMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -124,6 +140,37 @@ CORS_ALLOW_CREDENTIALS = True
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", SECRET_KEY)
 
+# Derives Safety QR tokens. Set it in production and keep it: changing it stops
+# every existing QR working until it's generated again.
+SAFETY_QR_SECRET = os.getenv("SAFETY_QR_SECRET") or SECRET_KEY
+SAFETY_REQUIRE_HTTPS = os.getenv("SAFETY_REQUIRE_HTTPS", str(not DEBUG)).lower() == "true"
+
+# Walking routes for the reunification map. Without a key the app falls back
+# to opening Google Maps. Needs the Routes API enabled on the key.
+GOOGLE_ROUTES_API_KEY = os.getenv("GOOGLE_ROUTES_API_KEY", "")
+
+# Numbers offered for a direct phone call on the SOS screen, as "label:number"
+# separated by commas. These are calls from the phone, not app features.
+EMERGENCY_NUMBERS = [
+    {"label": item.split(":", 1)[0].strip(), "number": item.split(":", 1)[1].strip()}
+    for item in os.getenv("EMERGENCY_NUMBERS", "emergency:112").split(",") if ":" in item
+]
+EMERGENCY_LOCATION_RETENTION_DAYS = int(os.getenv("EMERGENCY_LOCATION_RETENTION_DAYS", "30"))
+
+# Volunteer accounts.
+OPERATIONS_SETUP_CODE_HOURS = int(os.getenv("OPERATIONS_SETUP_CODE_HOURS", "48"))
+OPERATIONS_DEFAULT_ZONE_RADIUS_M = int(os.getenv("OPERATIONS_DEFAULT_ZONE_RADIUS_M", "1500"))
+
+# Family location sharing.
+LOCATION_MAX_SHARE_HOURS = int(os.getenv("LOCATION_MAX_SHARE_HOURS", "12"))
+LOCATION_UPDATE_SECONDS = int(os.getenv("LOCATION_UPDATE_SECONDS", "30"))
+LOCATION_DISTANCE_METRES = int(os.getenv("LOCATION_DISTANCE_METRES", "25"))
+LOCATION_POLL_SECONDS = int(os.getenv("LOCATION_POLL_SECONDS", "20"))
+LOCATION_LIVE_SECONDS = int(os.getenv("LOCATION_LIVE_SECONDS", "120"))
+LOCATION_RECENT_SECONDS = int(os.getenv("LOCATION_RECENT_SECONDS", "600"))
+LOCATION_STALE_NOTICE_MINUTES = int(os.getenv("LOCATION_STALE_NOTICE_MINUTES", "30"))
+LOCATION_SESSION_RETENTION_DAYS = int(os.getenv("LOCATION_SESSION_RETENTION_DAYS", "7"))
+
 SIMPLE_JWT = {
     "SIGNING_KEY": JWT_SECRET_KEY,
     "ALGORITHM": "HS256",
@@ -134,12 +181,17 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "USER_ID_FIELD": "user_id",
     "USER_ID_CLAIM": "user_id",
-    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "AUTH_TOKEN_CLASSES": ("apps.authentication.tokens.KumbhAccessToken",),
 }
 
 
 
 AUTH_USER_MODEL = "authentication.User"
+
+# "fixed" is the development code. Production uses "sms".
+MOBILE_OTP_MODE = os.getenv("MOBILE_OTP_MODE", "fixed")
+
+LOGGING = logging_config(os.getenv("LOG_LEVEL", "INFO"))
 
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
@@ -156,6 +208,7 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 # =====================================================================
 AI = {
     "PROVIDER": os.getenv("AI_PROVIDER", "gemini"),
+    "LOST_FOUND_ENABLED": os.getenv("AI_LOST_FOUND_ENABLED", "true").lower() == "true",
     "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
     # Graph nodes ask for a *purpose*, never a model name.
     #   default: final answers to the user

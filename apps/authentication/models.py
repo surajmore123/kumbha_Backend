@@ -56,6 +56,8 @@ class User(AbstractBaseUser,PermissionsMixin):
     # Website (kumbhapath.in) fields; the website API lives in apps/website.
     role = models.CharField(max_length=16,choices=[("user","User"),("partner","Partner"),("admin","Admin")],default="user")
     preferred_language = models.CharField(max_length=12,default="en")
+    # Tokens issued before this no longer work: see authentication.tokens.
+    tokens_valid_after = models.DateTimeField(null=True,blank=True,editable=False)
 
  
     created_at = models.DateTimeField(default=timezone.now)
@@ -92,7 +94,9 @@ class Otp(models.Model):
         related_name="otps",
     )
 
-    otp_code = models.CharField(max_length=6)
+    otp_code = models.CharField(max_length=6, blank=True)
+    code_hash = models.CharField(max_length=64, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
     expiry_time = models.DateTimeField()
     is_used = models.BooleanField(default=False)
     is_del = models.SmallIntegerField(default=0)
@@ -171,7 +175,9 @@ class NotificationPreference(models.Model):
         "event_updates",     # a followed event changed or was withdrawn
         "new_events",        # a new event was published
         "crowd_alerts",      # crowd level rising in a zone
-        "safety_alerts",     # serious incidents (HIGH / CRITICAL)
+        "safety_alerts",     # serious incidents, and Lost & Found case updates
+        "family_location",   # location sharing started, stopped or ended
+        "reunification",     # family meeting messages
     )
 
     user = models.OneToOneField(
@@ -185,6 +191,8 @@ class NotificationPreference(models.Model):
     new_events = models.BooleanField(default=True)
     crowd_alerts = models.BooleanField(default=True)
     safety_alerts = models.BooleanField(default=True)
+    family_location = models.BooleanField(default=True)
+    reunification = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

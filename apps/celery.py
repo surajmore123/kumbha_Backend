@@ -1,5 +1,8 @@
 import os
 from celery import Celery
+from celery.signals import task_failure
+
+from utils.observability import log_task_failure
 
 os.environ.setdefault(
     "DJANGO_SETTINGS_MODULE",
@@ -14,5 +17,7 @@ app.config_from_object(
 )
 
 app.autodiscover_tasks()
+
+task_failure.connect(log_task_failure)
 
 app.conf.beat_scheduler = "django_celery_beat.schedulers:DatabaseScheduler"
